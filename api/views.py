@@ -2,7 +2,7 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from .serializers import RegisterSerializer, CustomTokenObtainPairSerializer
-from api.models import MyUser, Rol
+from api.models import MyUser, Rol, ProductCategory, Products
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -48,3 +48,17 @@ class LogoutAndBlacklistRefreshTokenForUserView(generics.CreateAPIView):
                 return Response({"error": "Token de actualización no proporcionado"}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"error": "Error interno del servidor"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+class ListOfProductsWithoutLoginView(generics.ListAPIView):
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        products = Products.objects.all()
+        products_list = []
+        for product in products:
+            products_list.append({
+                'name': product.name,
+                'category_name': product.category.name
+            })
+        
+        return Response({'success': True,'products': products_list}, status=status.HTTP_200_OK) 

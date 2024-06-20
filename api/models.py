@@ -35,3 +35,29 @@ class MyUser(AbstractBaseUser, PermissionsMixin):
             'is_active': self.is_active,
             'is_staff': self.is_staff,            
         }
+        
+class ProductCategory (models.Model):
+    name = models.CharField(max_length=30)
+    
+    def __str__(self):
+        return self.name
+        
+class Products (models.Model):
+    name = models.CharField(max_length=30)
+    price = models.FloatField()
+    quantity = models.IntegerField()
+    category = models.ForeignKey(ProductCategory, on_delete=models.CASCADE)
+    url = models.URLField(max_length=200, blank=True)
+
+    def __str__(self):
+        return self.name
+    
+    def to_json(self):
+        return {
+            'name': self.name,
+            'price': self.price,
+            'quantity': self.quantity,
+            'category_name': self.category.name,
+            'url': self.url
+        }
+    
