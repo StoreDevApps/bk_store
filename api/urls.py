@@ -8,4 +8,5 @@ urlpatterns = [
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('logout/', views.LogoutAndBlacklistRefreshTokenForUserView.as_view(), name='token_blacklist'),
     path('products-without-login/', views.ListOfProductsWithoutLoginView.as_view(), name='products_list'),
+    path('contactus/', views.emailContactUs.as_view(), name='contactus'),
 ]
