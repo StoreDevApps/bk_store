@@ -37,7 +37,7 @@ class MyUser(AbstractBaseUser, PermissionsMixin):
         }
         
 class ProductCategory (models.Model):
-    name = models.CharField(max_length=30)
+    name = models.CharField(max_length=50, unique=True)
     
     def __str__(self):
         return str(self.name)

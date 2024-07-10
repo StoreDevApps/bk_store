@@ -8,5 +8,10 @@ urlpatterns = [
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('logout/', views.LogoutAndBlacklistRefreshTokenForUserView.as_view(), name='token_blacklist'),
     path('products-without-login/', views.ListOfProductsWithoutLoginView.as_view(), name='products_list'),
-    path('contactus/', views.emailContactUs.as_view(), name='contactus'),
+    path('contactus/', views.EmailContactUs.as_view(), name='contactus'),
+    path('product-categories/', views.ListOfProductCategoryView.as_view(), name='list_products_category'),
+    path('product-category/<int:pk>/', views.ListOfProductsView.as_view(), name='products_list'),
+    
+    path('supliers/', views.ListOfSupliersView.as_view(), name='list_supliers'),
+    
 ]
