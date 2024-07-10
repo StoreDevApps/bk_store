@@ -2,7 +2,7 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from .serializers import RegisterSerializer, CustomTokenObtainPairSerializer
-from api.models import MyUser, Rol, ProductCategory, Products
+from api.models import MyUser, Rol, ProductCategory, Product
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -55,7 +55,7 @@ class ListOfProductsWithoutLoginView(generics.ListAPIView):
     permission_classes = [AllowAny]
     
     def get(self, request):
-        products = Products.objects.all()
+        products = Product.objects.all()
         products_list = []
         for product in products:
             products_list.append({
