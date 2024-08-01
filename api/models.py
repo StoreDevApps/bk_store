@@ -7,7 +7,7 @@ class Rol(models.Model):
 
     def __str__(self):
         return str(self.user_type)
-    
+
 class MyUser(AbstractBaseUser, PermissionsMixin):
     name = models.CharField(max_length=30, blank=True)
     last_name = models.CharField(max_length=30, blank=True)
@@ -24,7 +24,7 @@ class MyUser(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return str(self.email)
-    
+
     def to_json(self):
         return {
             'name': self.name,
@@ -35,10 +35,10 @@ class MyUser(AbstractBaseUser, PermissionsMixin):
             'is_active': self.is_active,
             'is_staff': self.is_staff,            
         }
-        
+
 class ProductCategory (models.Model):
     name = models.CharField(max_length=50, unique=True)
-    
+
     def __str__(self):
         return str(self.name)
 
@@ -47,10 +47,10 @@ class Suplier (models.Model):
     email = models.EmailField(max_length=150,unique=True, blank=True)
     phone_number = models.CharField(max_length=15, blank=True)
     direction = models.CharField(max_length=100, blank=True)
-    
+
     def __str__(self):
         return str(self.name)
-            
+
 class Product (models.Model):
     presentation = models.CharField(max_length=30)
     category = models.ForeignKey(ProductCategory, on_delete=models.CASCADE)
@@ -62,7 +62,7 @@ class Product (models.Model):
 
     def __str__(self):
         return str(self.detail) + ' (' + self.brand + ')'
-    
+
     def to_json(self):
         return {
             'presentation': self.presentation,
@@ -73,7 +73,7 @@ class Product (models.Model):
             'duedate': self.duedate,
             'url': self.url
         }
-        
+
 class ProductHistory (models.Model):
     date = models.DateField()
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
@@ -81,22 +81,29 @@ class ProductHistory (models.Model):
     unit_cost_price = models.FloatField()
     unit_sales_price = models.FloatField()
     units_purchased = models.IntegerField(default=0)
-    
+
     def __str__(self):
         return str(self.product) + ' - ' + str(self.suplier) + ' - ' + str(self.date)
-    
+
 class Inventory (models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     quantity = models.IntegerField()
     sales_price = models.FloatField()
-    
+
     def __str__(self):
         return str(self.product) + ' - ' + str(self.quantity) + ' - ' + str(self.sales_price)
-    
+
 class Sale (models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     quantity = models.IntegerField()
     date = models.DateField()
-    
+
     def __str__(self):
         return str(self.product) + ' - ' + str(self.quantity) + ' - ' + str(self.date)
+
+
+class CarouselImage (models.Model):
+    url = models.TextField(max_length=200)
+
+    def __str__(self):
+        return str(self.url)
