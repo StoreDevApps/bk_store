@@ -55,6 +55,9 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
 
 class LogoutAndBlacklistRefreshTokenForUserView(generics.CreateAPIView):
+    '''
+    Logout and blacklist refresh token for user
+    '''
     permission_classes = (IsAuthenticated,)
 
     def create(self, request, *args, **kwargs):
