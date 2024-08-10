@@ -6,6 +6,9 @@ urlpatterns = [
     path("register/", views.RegisterView.as_view(), name="register"),
     path("token/", views.CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("enviarCodigo/", views.EnviarCodigo.as_view()),
+    path("verificarCodigo/", views.VerificarCodigo.as_view()),
+    path("reestablecerContra/", views.ReestablecerContrasena.as_view()),
     path(
         "logout/",
         views.LogoutAndBlacklistRefreshTokenForUserView.as_view(),

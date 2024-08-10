@@ -1,15 +1,29 @@
-from rest_framework import generics, status
-from rest_framework.response import Response
-from rest_framework.exceptions import ValidationError
-from .serializers import RegisterSerializer, CustomTokenObtainPairSerializer
-from api.models import CarouselImage, MyUser, Rol, ProductCategory, Product
-from rest_framework_simplejwt.views import TokenObtainPairView
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework_simplejwt.tokens import RefreshToken
-from django.core.mail import EmailMultiAlternatives
-from django.conf import settings
 import base64
 import os
+import random
+import traceback
+
+from django.conf import settings
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import get_template
+from django.utils import timezone
+from rest_framework import generics, status
+from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenObtainPairView
+
+from api.models import (
+    CarouselImage,
+    CodigosReestablecimiento,
+    MyUser,
+    Product,
+    ProductCategory,
+    Rol,
+)
+
+from .serializers import CustomTokenObtainPairSerializer, RegisterSerializer
 
 Rol.objects.get_or_create(user_type="cliente")
 Rol.objects.get_or_create(user_type="administrador")
@@ -55,9 +69,10 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
 
 class LogoutAndBlacklistRefreshTokenForUserView(generics.CreateAPIView):
-    '''
+    """
     Logout and blacklist refresh token for user
-    '''
+    """
+
     permission_classes = (IsAuthenticated,)
 
     def create(self, request, *args, **kwargs):
@@ -78,6 +93,154 @@ class LogoutAndBlacklistRefreshTokenForUserView(generics.CreateAPIView):
         except Exception as e:
             return Response(
                 {"error": "Error interno del servidor"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class EnviarCodigo(generics.GenericAPIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        correo = request.data["correo"]
+        try:
+            usuario = MyUser.objects.get(email=correo)
+            codigo = "".join(random.choice("0123456789") for _ in range(4))
+            tiempo = timezone.now()
+            registro = CodigosReestablecimiento(
+                idUsuario=usuario, codigo=codigo, tiempoCreacion=tiempo
+            )
+            registro.save()
+            template = get_template("codigo.html")
+            # Se renderiza el template y se envian parametros
+            content = template.render({"codigo": codigo})
+
+            msg = EmailMultiAlternatives(
+                subject="Reestablecer contraseña",
+                body="Hola, recuerda que tu codigo tiene una duracion de 10min",
+                from_email=settings.EMAIL_HOST_USER,
+                to=[correo],
+            )
+            msg.attach_alternative(content, "text/html")
+            msg.send()
+            return Response(
+                {
+                    "success": True,
+                    "message": "Se ha enviado el código a su correo. Por favor revíselo y téngalo a la mano para poder cambiar su contraseña.",
+                    "codigo": codigo,
+                }
+            )
+        except MyUser.DoesNotExist:
+            print(traceback.format_exc())
+            return Response(
+                {"success": False, "error": "Correo no valido, su cuenta no existe"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        except Exception:
+            print(traceback.format_exc())
+            return Response(
+                {
+                    "success": False,
+                    "error": "Error intern o del servidor, intentalo de nuevo",
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class VerificarCodigo(generics.GenericAPIView):
+    permission_classes = [AllowAny]
+    def post(self, request):
+        try:
+            codigo_ingresado = request.data["codigo"]
+            correo = request.data["correo"]
+            usuario = MyUser.objects.filter(email=correo).first()
+            registro = (
+                CodigosReestablecimiento.objects.filter(idUsuario=usuario)
+                .order_by("-tiempoCreacion")
+                .first()
+            )
+            tiempo = (timezone.now() - registro.tiempoCreacion).total_seconds() <= 600
+            if (
+                registro
+                and registro.codigo == codigo_ingresado
+                and not registro.isUtilizado
+                and tiempo
+            ):
+                registro.isUtilizado = True
+                registro.save()
+                return Response(
+                    {"success": True, "status": 200, "usuario": usuario.to_json()}
+                )
+            elif registro.codigo != codigo_ingresado:
+                return Response(
+                    {"success": False, "mensaje": "Código ingresado no válido"}
+                )
+            elif not tiempo:
+                return Response({"success": False, "mensaje": "Código ha expirado"})
+            else:
+                return Response(
+                    {"success": False, "mensaje": "No existe ningun registro"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        except Exception:
+            return Response(
+                {
+                    "success": False,
+                    "error": "Error interno del servidor, intente de nuevo",
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class ReestablecerContrasena(generics.GenericAPIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        return self._reestablecer_contrasena(request, reset_password=True)
+
+    def put(self, request):
+        return self._reestablecer_contrasena(request, reset_password=False)
+
+    def _reestablecer_contrasena(self, request, reset_password):
+        try:
+            correo = request.data.get("correo")
+            usuario = MyUser.objects.get(email=correo)
+
+            if not reset_password:
+                actual_contrasena = request.data.get("actualPassword")
+                if not usuario.check_password(actual_contrasena):
+                    return Response(
+                        {"success": False, "message": "Contraseña actual incorrecta"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+            nueva_contrasena = request.data.get("newPassword")
+            if usuario.check_password(nueva_contrasena):
+                return Response(
+                    {
+                        "success": False,
+                        "message": "La nueva contraseña debe ser diferente de la actual",
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            usuario.set_password(nueva_contrasena)
+            usuario.save()
+
+            return Response(
+                {"success": True, "usuario": usuario.to_json()},
+                status=status.HTTP_200_OK,
+            )
+        except MyUser.DoesNotExist:
+            return Response(
+                {"success": False, "message": "Usuario no encontrado"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except Exception as e:
+            return Response(
+                {
+                    "success": False,
+                    "error": "Error interno del servidor, intente de nuevo",
+                },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
