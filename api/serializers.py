@@ -2,7 +2,6 @@ from rest_framework import serializers
 from api.models import MyUser, Rol
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework import serializers
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -47,20 +46,19 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             raise serializers.ValidationError(
                 "La contraseña proporcionada es incorrecta"
             )
-
-        refresh = RefreshToken.for_user(user)
+        print(user.rol.user_type)
+        refresh = self.get_token(user)
         return {
             "refresh": str(refresh),
             "access": str(refresh.access_token),
-            'role': user.rol.user_type
         }
-        
+
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
 
         # Add custom claims
-        token['role'] = user.rol.user_type
-        token['email'] = user.email
+        token["role"] = user.rol.user_type
+        token["email"] = user.email
 
         return token
