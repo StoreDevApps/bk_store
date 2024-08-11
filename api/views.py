@@ -1,4 +1,5 @@
 import base64
+import json
 import os
 import random
 import traceback
@@ -13,6 +14,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
 
 from api.models import (
     CarouselImage,
@@ -418,8 +421,9 @@ class ListOfProductsView(generics.ListCreateAPIView):
 
 
 class CarouselImageHomeView(generics.ListCreateAPIView):
+    
     permission_classes = [AllowAny]
-
+    
     def get(self, request):
         carousel_images = CarouselImage.objects.all()
         carousel_images_list = []
@@ -447,7 +451,7 @@ class CarouselImageHomeView(generics.ListCreateAPIView):
                     encoded_image = base64.b64encode(image_file.read()).decode("utf-8")
                     image_data = f"data:image/jpeg;base64,{encoded_image}"
                     carousel_images_list.append(
-                        {"url": image_data, "name": carousel_image.url}
+                        {"url": image_data, "name": carousel_image.name, "id": carousel_image.id}
                     )
             except FileNotFoundError:
                 # Handle the case where the file is not found
@@ -459,3 +463,63 @@ class CarouselImageHomeView(generics.ListCreateAPIView):
             {"success": True, "carousel_images": carousel_images_list},
             status=status.HTTP_200_OK,
         )
+    
+class UploadCarouselImageView(generics.ListCreateAPIView):
+    def post(self, request):
+        file_data_list = request.POST.getlist('fileData[]')
+        images = request.FILES.getlist('images[]')
+
+        for i, file_data_json in enumerate(file_data_list):
+            file_data = json.loads(file_data_json)
+
+            # Obtener los datos del JSON
+            file_name_without_extension = file_data['name']
+            unique_name_with_extension = file_data['uniqueNameWithExtension']
+
+            # Obtener la imagen correspondiente del request.FILES
+            image = images[i]
+
+            if image:
+                file_path = os.path.join(
+                    settings.STATICFILES_DIRS[0], "carousel_home", unique_name_with_extension
+                )
+
+                # Asegúrate de que el directorio existe
+                os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+                # Guardar la imagen en la ruta especificada
+                with open(file_path, 'wb') as f:
+                    f.write(image.read())
+
+                # Guardar la información en la base de datos
+                CarouselImage(name=file_name_without_extension, url=unique_name_with_extension).save()
+            else:
+                return Response({'success': False,'message': 'Error al cargar la imagen'}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({'success': True,'message': 'Imagenes guardadas correctamente'}, status=status.HTTP_200_OK)
+    
+class DeleteCarouselImageView(generics.ListCreateAPIView):
+    def delete(self, request, pk):
+        try:
+            carousel_image = CarouselImage.objects.get(id=pk)
+            
+            image_path = os.path.join(settings.STATICFILES_DIRS[0], "carousel_home", carousel_image.url)
+            
+            # Eliminar el archivo del sistema de archivos si existe
+            if os.path.exists(image_path):
+                os.remove(image_path)
+            
+            carousel_image.delete()
+            return Response(
+                {"success": True, "message": "Imagen eliminada correctamente"},
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            print(e)
+            return Response(
+                {
+                    "success": False,
+                    "message": "Error interno del servidor, intente de nuevo",
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )

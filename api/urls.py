@@ -36,4 +36,6 @@ urlpatterns = [
         views.CarouselImageHomeView.as_view(),
         name="carousel_home",
     ),
+    path('admin/carousel-images/', views.UploadCarouselImageView.as_view(), name="carousel_image"),
+    path('admin/carousel-image/<int:pk>/', views.DeleteCarouselImageView.as_view(), name="delete_carousel_image"),
 ]

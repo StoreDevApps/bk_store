@@ -125,6 +125,7 @@ class Sale(models.Model):
 
 
 class CarouselImage(models.Model):
+    name = models.CharField(max_length=30, blank=True)
     url = models.TextField(max_length=200)
 
     def __str__(self):
