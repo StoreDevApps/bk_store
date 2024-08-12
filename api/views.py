@@ -19,11 +19,13 @@ from django.core.files.base import ContentFile
 
 from api.models import (
     CarouselImage,
+    CategoriesService,
     CodigosReestablecimiento,
     MyUser,
     Product,
     ProductCategory,
     Rol,
+    Service,
 )
 
 from .serializers import CustomTokenObtainPairSerializer, RegisterSerializer
@@ -429,23 +431,20 @@ class CarouselImageHomeView(generics.ListCreateAPIView):
         carousel_images_list = []
 
         for carousel_image in carousel_images:
-            # Ensure the URL is safe and construct the file path
             file_name = carousel_image.url.lstrip("/")
             file_path = os.path.join(
                 settings.STATICFILES_DIRS[0], "carousel_home", file_name
             )
 
-            # Ensure the file path is within the static files directory
             if (
                 not os.path.commonpath([settings.STATICFILES_DIRS[0], file_path])
                 == settings.STATICFILES_DIRS[0]
             ):
                 return Response(
-                    {"error": "Archivo fuera de los límites permitidos"},
+                    {"success": False,"error": "Archivo fuera de los límites permitidos"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            # Read and encode the image in base64
             try:
                 with open(file_path, "rb") as image_file:
                     encoded_image = base64.b64encode(image_file.read()).decode("utf-8")
@@ -454,10 +453,9 @@ class CarouselImageHomeView(generics.ListCreateAPIView):
                         {"url": image_data, "name": carousel_image.name, "id": carousel_image.id}
                     )
             except FileNotFoundError:
-                # Handle the case where the file is not found
                 carousel_images_list.append(
                     {"url": "data:image/jpeg;base64,"}
-                )  # Empty placeholder
+                )
 
         return Response(
             {"success": True, "carousel_images": carousel_images_list},
@@ -514,8 +512,251 @@ class DeleteCarouselImageView(generics.ListCreateAPIView):
                 {"success": True, "message": "Imagen eliminada correctamente"},
                 status=status.HTTP_200_OK,
             )
+
+        except CarouselImage.DoesNotExist:
+            return Response(
+                {"success": False, "message": "Imagen no encontrada"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
         except Exception as e:
             print(e)
+            return Response(
+                {
+                    "success": False,
+                    "message": "Error interno del servidor, intente de nuevo",
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+            
+class AdminCategoriesServicesView(generics.ListCreateAPIView):
+    def get(self, request):
+        categories = CategoriesService.objects.all()
+        categories_list = []
+
+        for category in categories:
+            categories_list.append(
+                {
+                    "name": category.name
+                }
+            )
+
+        return Response(
+            {"success": True, "categories": categories_list}, status=status.HTTP_200_OK
+        )
+        
+    def post(self, request):
+        name = request.data.get("name")
+        print(name)
+        try:
+            CategoriesService(name=name).save()
+            return Response(
+                {"success": True, "message": "Categoría guardada correctamente"},
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            print(traceback.format_exc())
+            return Response(
+                {
+                    "success": False,
+                    "message": "Error interno del servidor, intente de nuevo",
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+class PublicServicesView(generics.ListCreateAPIView):
+    permission_classes = [AllowAny]
+    def get(self, request):
+        services = Service.objects.all()
+        services_list = {}
+        
+        for service in services:
+            file_name = service.url.lstrip("/")
+            file_path = os.path.join(
+                settings.STATICFILES_DIRS[0], "services", file_name
+            )
+             # Ensure the file path is within the static files directory
+            if (
+                not os.path.commonpath([settings.STATICFILES_DIRS[0], file_path])
+                == settings.STATICFILES_DIRS[0]
+            ):
+                return Response(
+                    {"error": "Archivo fuera de los límites permitidos"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            try:
+                with open(file_path, "rb") as f:
+                    encoded_image = base64.b64encode(f.read()).decode("utf-8")
+                    image_data = f"data:image/jpeg;base64,{encoded_image}"
+            except FileNotFoundError:
+                # Handle the case where the file is not found
+                image_data = "data:image/jpeg;base64,"  # Empty placeholder
+            current = {
+                "name": service.name,
+                "description": service.description,
+                "image": image_data,
+            }
+            if service.categoria.name not in services_list:
+                services_list[service.categoria.name] = [current]
+            else:
+                services_list[service.categoria.name].append(current)
+        return Response(
+            {"success": True, "services": services_list}, status=status.HTTP_200_OK
+        )
+
+class AdminServicesView(generics.ListCreateAPIView):
+
+    def get(self, request):
+        services = Service.objects.all()
+        services_list = []
+
+        for service in services:
+            
+            file_name = service.url.lstrip("/")
+            
+            file_path = os.path.join(
+                settings.STATICFILES_DIRS[0], "services", file_name
+            )
+            
+            if (
+                not os.path.commonpath([settings.STATICFILES_DIRS[0], file_path])
+                == settings.STATICFILES_DIRS[0]
+            ):
+                return Response(
+                    {"success": False,"error": "Archivo fuera de los límites permitidos"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+                
+            try:
+                with open(file_path, "rb") as f:
+                    encoded_image = base64.b64encode(f.read()).decode("utf-8")
+                    image_data = f"data:image/jpeg;base64,{encoded_image}"
+            except FileNotFoundError:
+                image_data = "data:image/jpeg;base64,"
+            
+            services_list.append(
+                {
+                    "id": service.id,
+                    "name": service.name,
+                    "category": service.categoria.name,
+                    "image": image_data,
+                    "description": service.description
+                }
+            )
+
+        return Response(
+            {"success": True, "services": services_list}, status=status.HTTP_200_OK
+        )
+        
+    def post(self, request):
+        print(request.POST.get('service'))
+        service_data = json.loads(request.data.get('service'))
+        print("******************************")
+        print(request.data.get('fileData'))
+        file_data = json.loads(request.data.get('fileData'))
+        image = request.FILES.get('image')
+        
+        if(image):
+            file_path = os.path.join(
+                settings.STATICFILES_DIRS[0], "services", file_data['uniqueNameWithExtension']
+            )
+            
+            # Asegúrate de que el directorio existe
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            
+            # Guardar la imagen en la ruta especificada
+            with open(file_path, "wb") as f:
+                f.write(image.read())
+                
+            categoria = CategoriesService.objects.get(name=service_data['category'])
+            
+            service = Service(
+                name=service_data['name'],
+                categoria=categoria,
+                url=file_data['uniqueNameWithExtension'],
+                description=service_data['description']
+            )
+            service.save()
+        else:
+            return Response(
+                {"success": False, "message": "No se ha cargado ninguna imagen"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(
+            {"success": True, "message": "Servicio creado correctamente"},
+            status=status.HTTP_200_OK,
+        )
+        
+class AdminServiceView(generics.ListCreateAPIView):
+    def put(self, request, pk):
+        try:          
+            
+            service_data = json.loads(request.data.get('service'))
+            service = Service.objects.get(id=pk)
+            image = request.FILES.getlist('image')
+            unique_name_with_extension = service.url
+            
+            if image:
+                file_data = json.loads(request.data.get('fileData'))
+                unique_name_with_extension = file_data['uniqueNameWithExtension']
+                file_path = os.path.join(
+                    settings.STATICFILES_DIRS[0], "services", unique_name_with_extension
+                )
+                
+                # Asegúrate de que el directorio existe
+                os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                
+                # Guardar la imagen en la ruta especificada
+                with open(file_path, 'wb') as f:
+                    f.write(image.read())
+                
+                service.url = unique_name_with_extension
+                
+            service.name = file_data['name']
+            service.description = file_data['description']
+            service.categoria = CategoriesService(id=file_data['category_id'])
+            service.save()
+            
+            return Response(
+                {"success": True, "message": "Servicio actualizado correctamente"},
+                status=status.HTTP_200_OK,
+            )
+        except Service.DoesNotExist:
+            return Response(
+                {
+                    "success": False,
+                    "message": "Error interno del servidor, intente de nuevo",
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def delete(self, request, pk):
+        try:
+            service = Service.objects.get(id=pk)
+                            
+            image_path = os.path.join(settings.STATICFILES_DIRS[0], "services", service.url)
+        
+            # Eliminar el archivo del sistema de archivos si existe
+            if os.path.exists(image_path):
+                os.remove(image_path)
+            
+                service.delete()
+                return Response(
+                    {"success": True, "message": "Servicio eliminado correctamente"},
+                    status=status.HTTP_200_OK,
+                )
+
+            else:
+                return Response(
+                    {"success": False, "message": "Servicio no encontrado"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+        except Service.DoesNotExist:
+            return Response(
+                {"success": False, "message": "Servicio no encontrado"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except Exception:
             return Response(
                 {
                     "success": False,

@@ -52,6 +52,12 @@ class ProductCategory(models.Model):
 
     def __str__(self):
         return str(self.name)
+    
+class CategoriesService(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+
+    def __str__(self):
+        return str(self.name)
 
 
 class Suplier(models.Model):
@@ -139,3 +145,12 @@ class CodigosReestablecimiento(models.Model):
     codigo = models.CharField(max_length=4)
     tiempoCreacion = models.DateTimeField()
     isUtilizado = models.BooleanField(default=False)
+    
+class Service(models.Model):
+    name = models.CharField(max_length=30)
+    categoria = models.ForeignKey(CategoriesService, on_delete=models.CASCADE)
+    description = models.CharField(max_length=70)
+    url = models.TextField(max_length=200, blank=True)
+    
+    def __str__(self):
+        return str(self.name)

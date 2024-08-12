@@ -36,6 +36,10 @@ urlpatterns = [
         views.CarouselImageHomeView.as_view(),
         name="carousel_home",
     ),
+    path('services/', views.PublicServicesView.as_view(), name="public_services"),
+    path('admin/categories-services/', views.AdminCategoriesServicesView.as_view(), name="admin_categories_services"),
     path('admin/carousel-images/', views.UploadCarouselImageView.as_view(), name="carousel_image"),
     path('admin/carousel-image/<int:pk>/', views.DeleteCarouselImageView.as_view(), name="delete_carousel_image"),
+    path('admin/services/', views.AdminServicesView.as_view(), name="admin_services"),
+    path('admin/service/<int:pk>/', views.AdminServiceView.as_view(), name="admin_service"),
 ]
