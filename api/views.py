@@ -30,10 +30,12 @@ from api.models import (
 
 from .serializers import CustomTokenObtainPairSerializer, RegisterSerializer
 
-Rol.objects.get_or_create(user_type="cliente")
-Rol.objects.get_or_create(user_type="administrador")
-Rol.objects.get_or_create(user_type="trabajador")
+USER_ROL_CLIENT = Rol.objects.get_or_create(user_type="cliente")
+USER_ROL_ADMIN = Rol.objects.get_or_create(user_type="administrador")
+USER_ROL_WORKER = Rol.objects.get_or_create(user_type="trabajador")
 
+MENSAJE_ERROR_500 = "Error interno del servidor, intente de nuevo"
+MENSAJ_ERROR_NO_ACCESO_CARPETA = "Archivo fuera de los límites permitidos"
 
 class RegisterView(generics.CreateAPIView):
     queryset = MyUser.objects.all()
@@ -63,7 +65,7 @@ class RegisterView(generics.CreateAPIView):
             return Response(
                 {
                     "success": False,
-                    "message": "Error interno del servidor, intente de nuevo",
+                    "message": MENSAJE_ERROR_500,
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
@@ -95,7 +97,7 @@ class LogoutAndBlacklistRefreshTokenForUserView(generics.CreateAPIView):
                     {"error": "Token de actualización no proporcionado"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-        except Exception as e:
+        except Exception:
             return Response(
                 {"error": "Error interno del servidor"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -190,7 +192,7 @@ class VerificarCodigo(generics.GenericAPIView):
             return Response(
                 {
                     "success": False,
-                    "error": "Error interno del servidor, intente de nuevo",
+                    "error": MENSAJE_ERROR_500,
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
@@ -240,11 +242,11 @@ class ReestablecerContrasena(generics.GenericAPIView):
                 {"success": False, "message": "Usuario no encontrado"},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        except Exception as e:
+        except Exception:
             return Response(
                 {
                     "success": False,
-                    "error": "Error interno del servidor, intente de nuevo",
+                    "error": MENSAJE_ERROR_500,
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
@@ -327,7 +329,7 @@ class ListOfProductCategoryView(generics.ListCreateAPIView):
             return Response(
                 {
                     "success": False,
-                    "message": "Error interno del servidor, intente de nuevo",
+                    "message": MENSAJE_ERROR_500,
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
@@ -354,7 +356,7 @@ class ProductCategoryView(generics.RetrieveUpdateDestroyAPIView):
             return Response(
                 {
                     "success": False,
-                    "message": "Error interno del servidor, intente de nuevo",
+                    "message": MENSAJE_ERROR_500,
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
@@ -374,7 +376,7 @@ class ProductCategoryView(generics.RetrieveUpdateDestroyAPIView):
             return Response(
                 {
                     "success": False,
-                    "message": "Error interno del servidor, intente de nuevo",
+                    "message": MENSAJE_ERROR_500,
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
@@ -392,7 +394,7 @@ class ProductCategoryView(generics.RetrieveUpdateDestroyAPIView):
             return Response(
                 {
                     "success": False,
-                    "message": "Error interno del servidor, intente de nuevo",
+                    "message": MENSAJE_ERROR_500,
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
@@ -437,11 +439,10 @@ class CarouselImageHomeView(generics.ListCreateAPIView):
             )
 
             if (
-                not os.path.commonpath([settings.STATICFILES_DIRS[0], file_path])
-                == settings.STATICFILES_DIRS[0]
+                os.path.commonpath([settings.STATICFILES_DIRS[0], file_path]) != settings.STATICFILES_DIRS[0]
             ):
                 return Response(
-                    {"success": False,"error": "Archivo fuera de los límites permitidos"},
+                    {"success": False,"error": MENSAJ_ERROR_NO_ACCESO_CARPETA},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -523,7 +524,7 @@ class DeleteCarouselImageView(generics.ListCreateAPIView):
             return Response(
                 {
                     "success": False,
-                    "message": "Error interno del servidor, intente de nuevo",
+                    "message": MENSAJE_ERROR_500,
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
@@ -553,12 +554,12 @@ class AdminCategoriesServicesView(generics.ListCreateAPIView):
                 {"success": True, "message": "Categoría guardada correctamente"},
                 status=status.HTTP_200_OK,
             )
-        except Exception as e:
+        except Exception:
             print(traceback.format_exc())
             return Response(
                 {
                     "success": False,
-                    "message": "Error interno del servidor, intente de nuevo",
+                    "message": MENSAJE_ERROR_500,
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
@@ -576,11 +577,10 @@ class PublicServicesView(generics.ListCreateAPIView):
             )
              # Ensure the file path is within the static files directory
             if (
-                not os.path.commonpath([settings.STATICFILES_DIRS[0], file_path])
-                == settings.STATICFILES_DIRS[0]
+                os.path.commonpath([settings.STATICFILES_DIRS[0], file_path]) != settings.STATICFILES_DIRS[0]
             ):
                 return Response(
-                    {"error": "Archivo fuera de los límites permitidos"},
+                    {"error": MENSAJ_ERROR_NO_ACCESO_CARPETA},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             try:
@@ -618,11 +618,10 @@ class AdminServicesView(generics.ListCreateAPIView):
             )
             
             if (
-                not os.path.commonpath([settings.STATICFILES_DIRS[0], file_path])
-                == settings.STATICFILES_DIRS[0]
+                os.path.commonpath([settings.STATICFILES_DIRS[0], file_path]) != settings.STATICFILES_DIRS[0]
             ):
                 return Response(
-                    {"success": False,"error": "Archivo fuera de los límites permitidos"},
+                    {"success": False,"error": MENSAJ_ERROR_NO_ACCESO_CARPETA},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
                 
@@ -735,7 +734,7 @@ class AdminServiceView(generics.ListCreateAPIView):
             return Response(
                 {
                     "success": False,
-                    "message": "Error interno del servidor, intente de nuevo",
+                    "message": MENSAJE_ERROR_500,
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
@@ -771,7 +770,14 @@ class AdminServiceView(generics.ListCreateAPIView):
             return Response(
                 {
                     "success": False,
-                    "message": "Error interno del servidor, intente de nuevo",
+                    "message": MENSAJE_ERROR_500,
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+            
+class UserWorkerListView(generics.ListAPIView):
+    def get(self, request):
+        workers = MyUser.objects.filter(rol = USER_ROL_WORKER).all()
+        return Response(
+            {"success": True, "workers": workers}, status=status.HTTP_200_OK
+        )
