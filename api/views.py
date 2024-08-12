@@ -689,15 +689,26 @@ class AdminServicesView(generics.ListCreateAPIView):
 class AdminServiceView(generics.ListCreateAPIView):
     def put(self, request, pk):
         try:          
-            
+            print("pk", pk)
             service_data = json.loads(request.data.get('service'))
+            print(service_data)
             service = Service.objects.get(id=pk)
+            print(service)
             image = request.FILES.getlist('image')
+
+            print(image)
             unique_name_with_extension = service.url
             
             if image:
+                image = image[0]
                 file_data = json.loads(request.data.get('fileData'))
                 unique_name_with_extension = file_data['uniqueNameWithExtension']
+                
+                image_path = os.path.join(settings.STATICFILES_DIRS[0], "services", service.url)
+                
+                if os.path.exists(image_path):
+                    os.remove(image_path)
+                
                 file_path = os.path.join(
                     settings.STATICFILES_DIRS[0], "services", unique_name_with_extension
                 )
@@ -711,9 +722,9 @@ class AdminServiceView(generics.ListCreateAPIView):
                 
                 service.url = unique_name_with_extension
                 
-            service.name = file_data['name']
-            service.description = file_data['description']
-            service.categoria = CategoriesService(id=file_data['category_id'])
+            service.name = service_data['name']
+            service.description = service_data['description']
+            service.categoria = CategoriesService.objects.get(name=service_data['category'])
             service.save()
             
             return Response(
