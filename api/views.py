@@ -16,6 +16,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
+from rest_framework.views import APIView
+
 
 from api.models import (
     CarouselImage,
@@ -781,3 +783,32 @@ class UserWorkerListView(generics.ListAPIView):
         return Response(
             {"success": True, "workers": workers}, status=status.HTTP_200_OK
         )
+
+
+class GetMultimediaProductoView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, product_id):
+        try:
+            # Obtén el producto
+            product = Product.objects.get(id=product_id)
+
+            # Obtén las imágenes y videos asociados al producto
+            images = product.images.all()
+            videos = product.videos.all()
+
+            # Construye la respuesta en formato JSON
+            multimedia = {
+                "product": product.detail,
+                "images": [{"id": image.id, "url": image.url} for image in images],
+                "videos": [{"id": video.id, "url": video.url} for video in videos],
+            }
+
+            return Response({"success": True, "multimedia": multimedia}, status=status.HTTP_200_OK)
+
+        except Product.DoesNotExist:
+            return Response({"success": False, "message": "Producto no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            print(e)
+            return Response({"success": False, "message": MENSAJE_ERROR_500}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

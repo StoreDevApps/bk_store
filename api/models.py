@@ -77,7 +77,6 @@ class Product(models.Model):
     brand = models.CharField(max_length=30)
     codigo = models.CharField(max_length=30)
     duedate = models.DateField(blank=True, null=True)
-    url = models.URLField(max_length=200, blank=True)
 
     def __str__(self):
         return str(self.detail) + " (" + self.brand + ")"
@@ -90,9 +89,25 @@ class Product(models.Model):
             "brand": self.brand,
             "codigo": self.codigo,
             "duedate": self.duedate,
-            "url": self.url,
+            "images": [image.url for image in self.images.all()],
+            "videos": [video.url for video in self.videos.all()],
         }
 
+
+class ProductImage(models.Model):
+    product = models.ForeignKey(Product, related_name="images", on_delete=models.CASCADE)
+    url = models.URLField(max_length=200)
+
+    def __str__(self):
+        return str(self.url)
+
+
+class ProductVideo(models.Model):
+    product = models.ForeignKey(Product, related_name="videos", on_delete=models.CASCADE)
+    url = models.URLField(max_length=200)
+
+    def __str__(self):
+        return str(self.url)
 
 class ProductHistory(models.Model):
     date = models.DateField()

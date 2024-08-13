@@ -31,6 +31,7 @@ urlpatterns = [
         name="products_list",
     ),
     path("products/", views.ListOfProductsView.as_view(), name="products_list"),
+        path('product/<int:product_id>/multimedia/', views.GetMultimediaProductoView.as_view(), name='get_multimedia_producto'),
     path(
         "public/carousel-home/",
         views.CarouselImageHomeView.as_view(),
