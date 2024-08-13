@@ -2,6 +2,8 @@ from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.db import models
 
 from api.managers import MyUserManager
+from django.core.exceptions import ValidationError
+from django.utils.translation import gettext_lazy as _
 
 
 class Rol(models.Model):
@@ -70,6 +72,13 @@ class Suplier(models.Model):
         return str(self.name)
 
 
+def validate_image_size(image):
+    max_size_mb = 4
+    if image.size > max_size_mb * 1024 * 1024:
+        raise ValidationError(
+            _(f"Image file size should not exceed {max_size_mb}MB.")
+        )
+
 class Product(models.Model):
     presentation = models.CharField(max_length=30)
     category = models.ForeignKey(ProductCategory, on_delete=models.CASCADE)
@@ -89,20 +98,32 @@ class Product(models.Model):
             "brand": self.brand,
             "codigo": self.codigo,
             "duedate": self.duedate,
-            "images": [image.url for image in self.images.all()],
-            "videos": [video.url for video in self.videos.all()],
+            "images": [image.url or image.image.url for image in self.images.all() if image.url or image.image],
+            "videos": [video.url for video in self.videos.all() if video.url],
         }
+
 
 
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, related_name="images", on_delete=models.CASCADE)
+    url = models.TextField(blank=True, null=True)  # Allows very long URLs
+    image = models.ImageField(upload_to='product_images/', validators=[validate_image_size], blank=True, null=True)
+
+    def __str__(self):
+        return str(self.url or self.image.url)
+
+    def save(self, *args, **kwargs):
+        if not (self.url or self.image):
+            raise ValidationError('Either an image or a URL must be provided.')
+        super().save(*args, **kwargs)
+
+
+class ProductVideo(models.Model):
+    product = models.ForeignKey(Product, related_name="videos", on_delete=models.CASCADE)
     url = models.URLField(max_length=200)
 
     def __str__(self):
         return str(self.url)
-
-
-class ProductVideo(models.Model):
     product = models.ForeignKey(Product, related_name="videos", on_delete=models.CASCADE)
     url = models.URLField(max_length=200)
 

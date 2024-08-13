@@ -790,17 +790,22 @@ class GetMultimediaProductoView(APIView):
 
     def get(self, request, product_id):
         try:
-            # Obtén el producto
+            # Get the product
             product = Product.objects.get(id=product_id)
 
-            # Obtén las imágenes y videos asociados al producto
+            # Get the images and videos associated with the product
             images = product.images.all()
             videos = product.videos.all()
 
-            # Construye la respuesta en formato JSON
+            # Construct the JSON response
             multimedia = {
                 "product": product.detail,
-                "images": [{"id": image.id, "url": image.url} for image in images],
+                "images": [
+                    {
+                        "id": image.id,
+                        "url": image.url if image.url else request.build_absolute_uri(image.image.url)
+                    } for image in images
+                ],
                 "videos": [{"id": video.id, "url": video.url} for video in videos],
             }
 
@@ -811,4 +816,4 @@ class GetMultimediaProductoView(APIView):
 
         except Exception as e:
             print(e)
-            return Response({"success": False, "message": MENSAJE_ERROR_500}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"success": False, "message": "Error interno del servidor"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
