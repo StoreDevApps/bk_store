@@ -23,7 +23,10 @@ Para iniciar el servidor de desarrollo
 
 o
 
-* python manage.py runserver 
+* python manage.py runserver
+
+Para cambiar los modelos creados
+* python manage.py makemigrations
 
 Para crear superusuarios django admin
 *  python manage.py createsuperuser
