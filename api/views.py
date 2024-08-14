@@ -425,7 +425,6 @@ class ListOfProductsView(generics.ListCreateAPIView):
             {"success": True, "products": products_list}, status=status.HTTP_200_OK
         )
 
-
 class CarouselImageHomeView(generics.ListCreateAPIView):
     
     permission_classes = [AllowAny]
