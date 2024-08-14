@@ -50,6 +50,8 @@ urlpatterns = [
     path('admin/carousel-image/<int:pk>/', views.DeleteCarouselImageView.as_view(), name="delete_carousel_image"),
     path('admin/services/', views.AdminServicesView.as_view(), name="admin_services"),
     path('admin/service/<int:pk>/', views.AdminServiceView.as_view(), name="admin_service"),
+
+     path('user/<int:user_id>/', viewsCliente.UserDetailView.as_view(), name='user_detail'),
 ]
 
 if settings.DEBUG:
