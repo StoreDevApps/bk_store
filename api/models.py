@@ -1,6 +1,7 @@
+from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.db import models
-
+from django.core.exceptions import ValidationError
 from api.managers import MyUserManager
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
@@ -48,6 +49,18 @@ class MyUser(AbstractBaseUser, PermissionsMixin):
             "is_active": self.is_active,
             "is_staff": self.is_staff,
         }
+    
+
+    def ha_comprado(self, producto):
+        """
+        Verifica si el usuario ha comprado un producto específico.
+        Solo cuenta las órdenes con estado 'Completa'.
+        """
+        return Orden.objects.filter(
+            usuario=self,
+            estado='Completa',
+            items__producto=producto
+        ).exists()
 
 
 class ProductCategory(models.Model):
@@ -118,6 +131,16 @@ class Product(models.Model):
                 "videos": videos,
                 "price": price  # Incluye el precio en el JSON
             }
+    
+    def calcular_puntuacion_promedio(self):
+        """
+        Calcula la puntuación promedio del producto basado en todas las puntuaciones.
+        """
+        puntuaciones = Puntuacion.objects.filter(producto=self)
+        if puntuaciones.exists():
+            promedio = puntuaciones.aggregate(models.Avg('puntuacion'))['puntuacion__avg']
+            return round(promedio, 2)  # Redondear a 2 decimales
+        return None 
 
 
 class ProductImage(models.Model):
@@ -206,3 +229,104 @@ class Service(models.Model):
     
     def __str__(self):
         return str(self.name)
+
+class Carrito(models.Model):
+    usuario = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return f"Carrito de {self.usuario.email}"
+
+    def get_precio_total(self):
+        return sum(item.get_precio_total() for item in self.items.all())
+
+    def limpiar(self):
+        self.items.all().delete()        
+
+class ItemCarrito(models.Model):
+    carrito = models.ForeignKey(Carrito, related_name='items', on_delete=models.CASCADE)
+    producto = models.ForeignKey('Product', on_delete=models.CASCADE)
+    cantidad = models.PositiveIntegerField(default=1)
+
+    def __str__(self):
+        return f"{self.cantidad} x {self.producto.detail}"
+
+    def get_precio_total(self):
+        return self.cantidad * self.producto.price
+
+
+class Orden(models.Model):
+    ESTADOS_ORDEN = [
+        ('Enviada', 'Enviada'),
+        ('Completada', 'Completada'),
+        ('Eliminada', 'Eliminada'),
+    ]
+
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    precio_total = models.FloatField()
+    estado = models.CharField(max_length=10, choices=ESTADOS_ORDEN, default='Enviada')
+
+    def __str__(self):
+        return f"Orden #{self.id} por {self.usuario.email} - {self.get_estado_display()}"
+
+    def get_precio_total(self):
+        return sum(item.get_precio_total() for item in self.items.all())
+
+class DetalleOrden(models.Model):
+    orden = models.ForeignKey(Orden, related_name='items', on_delete=models.CASCADE)
+    producto = models.ForeignKey('Product', on_delete=models.SET_NULL, null=True)
+    cantidad = models.PositiveIntegerField(default=1)
+    precio = models.FloatField()  # Precio en el momento de la compra
+
+    def __str__(self):
+        return f"{self.cantidad} x {self.producto.detail} @ {self.precio} cada uno"
+
+    @property
+    def get_precio_total(self):
+        return self.cantidad * self.precio
+    
+
+class Comentario(models.Model):
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    producto = models.ForeignKey('Product', on_delete=models.CASCADE)
+    comentario = models.TextField()
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('usuario', 'producto')  # Un usuario solo puede comentar una vez por producto
+
+    def save(self, *args, **kwargs):
+        # Verificar si el usuario ha comprado el producto
+        if not self.usuario.ha_comprado(self.producto):
+            raise ValidationError("Solo puedes comentar si has comprado este producto.")
+        
+        # Verificar si el usuario ha asignado una puntuación antes de comentar
+        if not Puntuacion.objects.filter(usuario=self.usuario, producto=self.producto).exists():
+            raise ValidationError("Debes asignar una puntuación antes de comentar.")
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Comentario de {self.usuario.email} en {self.producto.detail}"
+
+class Puntuacion(models.Model):
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    producto = models.ForeignKey('Product', on_delete=models.CASCADE)
+    puntuacion = models.PositiveSmallIntegerField()  # Por ejemplo, de 1 a 5
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('usuario', 'producto')  # Un usuario solo puede puntuar una vez por producto
+
+    def save(self, *args, **kwargs):
+        # Verificar si el usuario ha comprado el producto
+        if not self.usuario.ha_comprado(self.producto):
+            raise ValidationError("Solo puedes puntuar si has comprado este producto.")
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Puntuación de {self.usuario.email} en {self.producto.detail}: {self.puntuacion}"
