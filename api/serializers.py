@@ -3,7 +3,7 @@ from rest_framework import serializers
 from api.models import MyUser, Product, Rol
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import Comentario, Product
+from .models import Comentario, ItemCarrito, Product
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -101,3 +101,11 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = MyUser
         fields = ['name', 'last_name', 'email']
+
+
+class ItemCarritoSerializer(serializers.ModelSerializer):
+    producto = ProductSerializer(read_only=True)  # Incluir detalles del producto
+
+    class Meta:
+        model = ItemCarrito
+        fields = ['id', 'producto', 'cantidad', 'get_precio_total']

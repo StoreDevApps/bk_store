@@ -57,8 +57,11 @@ urlpatterns = [
     path('products/<int:product_id>/comments/submit', viewsCliente.SubmitCommentView.as_view(), name='submit-comment'),
     path('products/<int:product_id>/has-purchased', viewsCliente.HasPurchasedView.as_view(), name='has-purchased'),
     path('products/<int:product_id>/comments/update', viewsCliente.UpdateCommentView.as_view(), name='update-comment'),
-    path('carrito/items/count', viewsCliente.CartItemCountView.as_view(), name='cart-item-count'),
 
+    path('carrito/item-count', viewsCliente.CartItemCountView.as_view(), name='cart-item-count'),
+    path('carrito/items', viewsCliente.CartItemsView.as_view(), name='cart-items'),
+    path('carrito/add', viewsCliente.AddToCartView.as_view(), name='add-to-cart'),
+    path('carrito/clear', viewsCliente.ClearCartView.as_view(), name='clear-cart'),    
 ]
 
 if settings.DEBUG:
