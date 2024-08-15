@@ -3,7 +3,7 @@ from django.template.loader import get_template
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-
+from django.db.models import Sum
 from api import models
 from api.models import (    
     Carrito,
@@ -179,7 +179,7 @@ class ClearCartView(APIView):
             return Response({'success': True, 'message': 'Carrito limpiado'})
         return Response({'success': False, 'message': 'No se encontró un carrito para limpiar'})
 
-from django.db.models import Sum
+
 class CartItemCountView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -191,18 +191,18 @@ class CartItemCountView(APIView):
             item_count = carrito.items.aggregate(total=Sum('cantidad'))['total'] or 0
             return Response({'count': item_count})
         return Response({'count': 0})
-
+    
 class CartItemsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        user = request.user
-        carrito = Carrito.objects.filter(usuario=user).first()
-        if carrito:
+        try:
+            carrito = Carrito.objects.get(usuario=request.user)
             items = carrito.items.all()
             serializer = ItemCarritoSerializer(items, many=True)
             return Response(serializer.data)
-        return Response([]) 
+        except Carrito.DoesNotExist:
+            return Response([], status=200)
 
 class ProductPaginationView(APIView):
     permission_classes = [AllowAny]

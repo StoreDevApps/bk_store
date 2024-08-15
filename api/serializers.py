@@ -104,8 +104,14 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class ItemCarritoSerializer(serializers.ModelSerializer):
-    producto = ProductSerializer(read_only=True)  # Incluir detalles del producto
+    product_detail = serializers.CharField(source='producto.detail', read_only=True)
+    price = serializers.SerializerMethodField()
 
     class Meta:
         model = ItemCarrito
-        fields = ['id', 'producto', 'cantidad', 'get_precio_total']
+        fields = ['id', 'product_detail', 'price', 'cantidad']  # Asegúrate de incluir 'id'
+
+    def get_price(self, obj):
+        # Cambiar 'product' por 'producto' para acceder al campo correcto
+        last_history = obj.producto.producthistory_set.order_by('-date').first()
+        return last_history.unit_sales_price if last_history else None

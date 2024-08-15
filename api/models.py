@@ -260,15 +260,16 @@ class Carrito(models.Model):
         self.items.all().delete()        
 
 class ItemCarrito(models.Model):
-    carrito = models.ForeignKey(Carrito, related_name='items', on_delete=models.CASCADE)
+    carrito = models.ForeignKey('Carrito', related_name='items', on_delete=models.CASCADE)
     producto = models.ForeignKey('Product', on_delete=models.CASCADE)
-    cantidad = models.IntegerField(default=1)
+    cantidad = models.PositiveIntegerField(default=1)
 
     def __str__(self):
         return f"{self.cantidad} x {self.producto.detail}"
 
     def get_precio_total(self):
-        return self.cantidad * self.producto.price
+        last_history = self.producto.producthistory_set.order_by('-date').first()
+        return self.cantidad * (last_history.unit_sales_price if last_history else 0)
 
 
 class Orden(models.Model):
