@@ -17,6 +17,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
+from rest_framework.views import APIView
+
 
 from api.models import (
     CarouselImage,
@@ -31,6 +33,7 @@ from api.models import (
 
 from .serializers import CustomTokenObtainPairSerializer, RegisterSerializer
 
+
 USER_ROL_CLIENT = Rol.objects.get_or_create(user_type="cliente")[0]
 USER_ROL_ADMIN = Rol.objects.get_or_create(user_type="administrador")[0]
 USER_ROL_WORKER = Rol.objects.get_or_create(user_type="trabajador")[0]
@@ -38,6 +41,9 @@ USER_ROL_WORKER = Rol.objects.get_or_create(user_type="trabajador")[0]
 MENSAJE_ERROR_500 = "Error interno del servidor, intente de nuevo"
 MENSAJ_ERROR_NO_ACCESO_CARPETA = "Archivo fuera de los límites permitidos"
 
+
+MENSAJE_ERROR_500 = "Error interno del servidor, intente de nuevo"
+MENSAJ_ERROR_NO_ACCESO_CARPETA = "Archivo fuera de los límites permitidos"
 
 class RegisterView(generics.CreateAPIView):
     queryset = MyUser.objects.all()
@@ -425,7 +431,6 @@ class ListOfProductsView(generics.ListCreateAPIView):
         return Response(
             {"success": True, "products": products_list}, status=status.HTTP_200_OK
         )
-
 
 class CarouselImageHomeView(generics.ListCreateAPIView):
 
@@ -920,3 +925,36 @@ class WorkerToAdminView(generics.CreateAPIView):
                     },
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
+                
+class GetMultimediaProductoView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, product_id):
+        try:
+            # Get the product
+            product = Product.objects.get(id=product_id)
+
+            # Get the images and videos associated with the product
+            images = product.images.all()
+            videos = product.videos.all()
+
+            # Construct the JSON response
+            multimedia = {
+                "product": product.detail,
+                "images": [
+                    {
+                        "id": image.id,
+                        "url": image.url if image.url else request.build_absolute_uri(image.image.url)
+                    } for image in images
+                ],
+                "videos": [{"id": video.id, "url": video.url} for video in videos],
+            }
+
+            return Response({"success": True, "multimedia": multimedia}, status=status.HTTP_200_OK)
+
+        except Product.DoesNotExist:
+            return Response({"success": False, "message": "Producto no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            print(e)
+            return Response({"success": False, "message": "Error interno del servidor"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

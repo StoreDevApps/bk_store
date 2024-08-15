@@ -1,5 +1,10 @@
+from django.conf import settings
+from django.conf.urls.static import static
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
+import os
+
+from api import viewsCliente
 from . import views
 
 urlpatterns = [
@@ -30,7 +35,10 @@ urlpatterns = [
         views.ProductCategoryView.as_view(),
         name="products_list",
     ),
+    path("products-pagination/", viewsCliente.ProductPaginationView.as_view(), name="products_pagination"),
+
     path("products/", views.ListOfProductsView.as_view(), name="products_list"),
+    path('product/<int:product_id>/multimedia/', views.GetMultimediaProductoView.as_view(), name='get_multimedia_producto'),
     path(
         "public/carousel-home/",
         views.CarouselImageHomeView.as_view(),
@@ -44,4 +52,9 @@ urlpatterns = [
     path('admin/service/<int:pk>/', views.AdminServiceView.as_view(), name="admin_service"),
     path('admin/list-workers/', views.UserWorkerListView.as_view(), name="admin_list_workers"),
     path('admin/worker-to-admin/', views.WorkerToAdminView.as_view(), name="worker_to_admin"),
+    
+    path('user/<int:user_id>/', viewsCliente.UserDetailView.as_view(), name='user_detail'),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static('/public/', document_root=os.path.join(settings.BASE_DIR, 'public'))
