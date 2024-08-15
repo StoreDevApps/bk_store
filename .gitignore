@@ -2,4 +2,4 @@ venv/
 __pycache__
 api/__pycache__/
 api/migrations/__pycache__/
-backendStore/__pycache__/settings.cpython-312.pyc
+backendStore/__pycache__/
