@@ -4,21 +4,20 @@ from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
+from api import models
 from api.models import (    
     Carrito,
     Comentario,
+    ItemCarrito,
     MyUser,
     Product,
-    ProductHistory,
-    ProductCategory,
-    Rol,
-    Service,
+    ProductHistory    
 )
 
 from django.db.models import OuterRef, Subquery, FloatField
 from django.db.models.functions import Cast
 from rest_framework.views import APIView
-from .serializers import ComentarioSerializer
+from .serializers import ComentarioSerializer, ItemCarritoSerializer
 from django.shortcuts import get_object_or_404
 
 from api.serializers import ProductSerializer
@@ -142,13 +141,68 @@ class HasPurchasedView(APIView):
         has_purchased = product.user_has_purchased(user)
         return Response({"has_purchased": has_purchased})
     
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        carrito = Carrito.objects.filter(usuario=user).first()
+        if carrito:
+            item_count = carrito.items.aggregate(total=models.Sum('cantidad'))['total'] or 0
+            return Response({'count': item_count})
+        return Response({'count': 0})
+    
+class AddToCartView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        product_id = request.data.get('productId')
+        product = Product.objects.get(id=product_id)
+        
+        carrito, created = Carrito.objects.get_or_create(usuario=user)
+        item, item_created = ItemCarrito.objects.get_or_create(carrito=carrito, producto=product)
+        
+        if not item_created:
+            item.cantidad += 1
+            item.save()
+        
+        return Response({'success': True, 'message': 'Producto añadido al carrito'})
+
+class ClearCartView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        carrito = Carrito.objects.filter(usuario=user).first()
+        if carrito:
+            carrito.limpiar()
+            return Response({'success': True, 'message': 'Carrito limpiado'})
+        return Response({'success': False, 'message': 'No se encontró un carrito para limpiar'})
+
+from django.db.models import Sum
 class CartItemCountView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        carrito = Carrito.objects.get(usuario=request.user)
-        item_count = carrito.items.filter(orden__estado='Creando').count()
-        return Response({'count': item_count})
+        user = request.user
+        carrito = Carrito.objects.filter(usuario=user).first()
+        if carrito:
+            # Usa Sum para sumar las cantidades
+            item_count = carrito.items.aggregate(total=Sum('cantidad'))['total'] or 0
+            return Response({'count': item_count})
+        return Response({'count': 0})
+
+class CartItemsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        carrito = Carrito.objects.filter(usuario=user).first()
+        if carrito:
+            items = carrito.items.all()
+            serializer = ItemCarritoSerializer(items, many=True)
+            return Response(serializer.data)
+        return Response([]) 
 
 class ProductPaginationView(APIView):
     permission_classes = [AllowAny]
