@@ -55,6 +55,7 @@ urlpatterns = [
      path('products/<int:product_id>/', viewsCliente.ProductDetailView.as_view(), name='product-detail'),
      path('products/<int:product_id>/comments/', viewsCliente.ProductCommentsView.as_view(), name='product-comments'),
     path('products/<int:product_id>/comments/submit', viewsCliente.SubmitCommentView.as_view(), name='submit-comment'),
+        path('products/<int:product_id>/has-purchased', viewsCliente.HasPurchasedView.as_view(), name='has-purchased'),
     path('products/<int:product_id>/comments/update', viewsCliente.UpdateCommentView.as_view(), name='update-comment')        
 
 ]

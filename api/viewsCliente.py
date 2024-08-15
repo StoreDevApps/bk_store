@@ -133,6 +133,15 @@ class UpdateCommentView(APIView):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+class HasPurchasedView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, product_id):
+        user = request.user
+        product = get_object_or_404(Product, id=product_id)
+        has_purchased = product.user_has_purchased(user)
+        return Response({"has_purchased": has_purchased})
+
 class ProductPaginationView(APIView):
     permission_classes = [AllowAny]
 
