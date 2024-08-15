@@ -2,6 +2,7 @@ import base64
 import json
 import os
 import random
+import string
 import traceback
 
 from django.conf import settings
@@ -30,9 +31,12 @@ from api.models import (
 
 from .serializers import CustomTokenObtainPairSerializer, RegisterSerializer
 
-Rol.objects.get_or_create(user_type="cliente")
-Rol.objects.get_or_create(user_type="administrador")
-Rol.objects.get_or_create(user_type="trabajador")
+USER_ROL_CLIENT = Rol.objects.get_or_create(user_type="cliente")[0]
+USER_ROL_ADMIN = Rol.objects.get_or_create(user_type="administrador")[0]
+USER_ROL_WORKER = Rol.objects.get_or_create(user_type="trabajador")[0]
+
+MENSAJE_ERROR_500 = "Error interno del servidor, intente de nuevo"
+MENSAJ_ERROR_NO_ACCESO_CARPETA = "Archivo fuera de los límites permitidos"
 
 
 class RegisterView(generics.CreateAPIView):
@@ -63,7 +67,7 @@ class RegisterView(generics.CreateAPIView):
             return Response(
                 {
                     "success": False,
-                    "message": "Error interno del servidor, intente de nuevo",
+                    "message": MENSAJE_ERROR_500,
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
@@ -95,7 +99,7 @@ class LogoutAndBlacklistRefreshTokenForUserView(generics.CreateAPIView):
                     {"error": "Token de actualización no proporcionado"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-        except Exception as e:
+        except Exception:
             return Response(
                 {"error": "Error interno del servidor"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -153,6 +157,7 @@ class EnviarCodigo(generics.GenericAPIView):
 
 class VerificarCodigo(generics.GenericAPIView):
     permission_classes = [AllowAny]
+
     def post(self, request):
         try:
             codigo_ingresado = request.data["codigo"]
@@ -190,7 +195,7 @@ class VerificarCodigo(generics.GenericAPIView):
             return Response(
                 {
                     "success": False,
-                    "error": "Error interno del servidor, intente de nuevo",
+                    "error": MENSAJE_ERROR_500,
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
@@ -240,11 +245,11 @@ class ReestablecerContrasena(generics.GenericAPIView):
                 {"success": False, "message": "Usuario no encontrado"},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        except Exception as e:
+        except Exception:
             return Response(
                 {
                     "success": False,
-                    "error": "Error interno del servidor, intente de nuevo",
+                    "error": MENSAJE_ERROR_500,
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
@@ -327,7 +332,7 @@ class ListOfProductCategoryView(generics.ListCreateAPIView):
             return Response(
                 {
                     "success": False,
-                    "message": "Error interno del servidor, intente de nuevo",
+                    "message": MENSAJE_ERROR_500,
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
@@ -354,7 +359,7 @@ class ProductCategoryView(generics.RetrieveUpdateDestroyAPIView):
             return Response(
                 {
                     "success": False,
-                    "message": "Error interno del servidor, intente de nuevo",
+                    "message": MENSAJE_ERROR_500,
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
@@ -374,7 +379,7 @@ class ProductCategoryView(generics.RetrieveUpdateDestroyAPIView):
             return Response(
                 {
                     "success": False,
-                    "message": "Error interno del servidor, intente de nuevo",
+                    "message": MENSAJE_ERROR_500,
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
@@ -392,7 +397,7 @@ class ProductCategoryView(generics.RetrieveUpdateDestroyAPIView):
             return Response(
                 {
                     "success": False,
-                    "message": "Error interno del servidor, intente de nuevo",
+                    "message": MENSAJE_ERROR_500,
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
@@ -423,9 +428,9 @@ class ListOfProductsView(generics.ListCreateAPIView):
 
 
 class CarouselImageHomeView(generics.ListCreateAPIView):
-    
+
     permission_classes = [AllowAny]
-    
+
     def get(self, request):
         carousel_images = CarouselImage.objects.all()
         carousel_images_list = []
@@ -437,11 +442,11 @@ class CarouselImageHomeView(generics.ListCreateAPIView):
             )
 
             if (
-                not os.path.commonpath([settings.STATICFILES_DIRS[0], file_path])
-                == settings.STATICFILES_DIRS[0]
+                os.path.commonpath([settings.STATICFILES_DIRS[0], file_path])
+                != settings.STATICFILES_DIRS[0]
             ):
                 return Response(
-                    {"success": False,"error": "Archivo fuera de los límites permitidos"},
+                    {"success": False, "error": MENSAJ_ERROR_NO_ACCESO_CARPETA},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -450,63 +455,79 @@ class CarouselImageHomeView(generics.ListCreateAPIView):
                     encoded_image = base64.b64encode(image_file.read()).decode("utf-8")
                     image_data = f"data:image/jpeg;base64,{encoded_image}"
                     carousel_images_list.append(
-                        {"url": image_data, "name": carousel_image.name, "id": carousel_image.id}
+                        {
+                            "url": image_data,
+                            "name": carousel_image.name,
+                            "id": carousel_image.id,
+                        }
                     )
             except FileNotFoundError:
-                carousel_images_list.append(
-                    {"url": "data:image/jpeg;base64,"}
-                )
+                carousel_images_list.append({"url": "data:image/jpeg;base64,"})
 
         return Response(
             {"success": True, "carousel_images": carousel_images_list},
             status=status.HTTP_200_OK,
         )
-    
+
+
 class UploadCarouselImageView(generics.ListCreateAPIView):
     def post(self, request):
-        file_data_list = request.POST.getlist('fileData[]')
-        images = request.FILES.getlist('images[]')
+        file_data_list = request.POST.getlist("fileData[]")
+        images = request.FILES.getlist("images[]")
 
         for i, file_data_json in enumerate(file_data_list):
             file_data = json.loads(file_data_json)
 
             # Obtener los datos del JSON
-            file_name_without_extension = file_data['name']
-            unique_name_with_extension = file_data['uniqueNameWithExtension']
+            file_name_without_extension = file_data["name"]
+            unique_name_with_extension = file_data["uniqueNameWithExtension"]
 
             # Obtener la imagen correspondiente del request.FILES
             image = images[i]
 
             if image:
                 file_path = os.path.join(
-                    settings.STATICFILES_DIRS[0], "carousel_home", unique_name_with_extension
+                    settings.STATICFILES_DIRS[0],
+                    "carousel_home",
+                    unique_name_with_extension,
                 )
 
                 # Asegúrate de que el directorio existe
                 os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
                 # Guardar la imagen en la ruta especificada
-                with open(file_path, 'wb') as f:
+                with open(file_path, "wb") as f:
                     f.write(image.read())
 
                 # Guardar la información en la base de datos
-                CarouselImage(name=file_name_without_extension, url=unique_name_with_extension).save()
+                CarouselImage(
+                    name=file_name_without_extension, url=unique_name_with_extension
+                ).save()
             else:
-                return Response({'success': False,'message': 'Error al cargar la imagen'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"success": False, "message": "Error al cargar la imagen"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
-        return Response({'success': True,'message': 'Imagenes guardadas correctamente'}, status=status.HTTP_200_OK)
-    
+        return Response(
+            {"success": True, "message": "Imagenes guardadas correctamente"},
+            status=status.HTTP_200_OK,
+        )
+
+
 class DeleteCarouselImageView(generics.ListCreateAPIView):
     def delete(self, request, pk):
         try:
             carousel_image = CarouselImage.objects.get(id=pk)
-            
-            image_path = os.path.join(settings.STATICFILES_DIRS[0], "carousel_home", carousel_image.url)
-            
+
+            image_path = os.path.join(
+                settings.STATICFILES_DIRS[0], "carousel_home", carousel_image.url
+            )
+
             # Eliminar el archivo del sistema de archivos si existe
             if os.path.exists(image_path):
                 os.remove(image_path)
-            
+
             carousel_image.delete()
             return Response(
                 {"success": True, "message": "Imagen eliminada correctamente"},
@@ -523,27 +544,24 @@ class DeleteCarouselImageView(generics.ListCreateAPIView):
             return Response(
                 {
                     "success": False,
-                    "message": "Error interno del servidor, intente de nuevo",
+                    "message": MENSAJE_ERROR_500,
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-            
+
+
 class AdminCategoriesServicesView(generics.ListCreateAPIView):
     def get(self, request):
         categories = CategoriesService.objects.all()
         categories_list = []
 
         for category in categories:
-            categories_list.append(
-                {
-                    "name": category.name
-                }
-            )
+            categories_list.append({"name": category.name})
 
         return Response(
             {"success": True, "categories": categories_list}, status=status.HTTP_200_OK
         )
-        
+
     def post(self, request):
         name = request.data.get("name")
         print(name)
@@ -553,34 +571,36 @@ class AdminCategoriesServicesView(generics.ListCreateAPIView):
                 {"success": True, "message": "Categoría guardada correctamente"},
                 status=status.HTTP_200_OK,
             )
-        except Exception as e:
+        except Exception:
             print(traceback.format_exc())
             return Response(
                 {
                     "success": False,
-                    "message": "Error interno del servidor, intente de nuevo",
+                    "message": MENSAJE_ERROR_500,
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
+
 class PublicServicesView(generics.ListCreateAPIView):
     permission_classes = [AllowAny]
+
     def get(self, request):
         services = Service.objects.all()
         services_list = {}
-        
+
         for service in services:
             file_name = service.url.lstrip("/")
             file_path = os.path.join(
                 settings.STATICFILES_DIRS[0], "services", file_name
             )
-             # Ensure the file path is within the static files directory
+            # Ensure the file path is within the static files directory
             if (
-                not os.path.commonpath([settings.STATICFILES_DIRS[0], file_path])
-                == settings.STATICFILES_DIRS[0]
+                os.path.commonpath([settings.STATICFILES_DIRS[0], file_path])
+                != settings.STATICFILES_DIRS[0]
             ):
                 return Response(
-                    {"error": "Archivo fuera de los límites permitidos"},
+                    {"error": MENSAJ_ERROR_NO_ACCESO_CARPETA},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             try:
@@ -603,6 +623,7 @@ class PublicServicesView(generics.ListCreateAPIView):
             {"success": True, "services": services_list}, status=status.HTTP_200_OK
         )
 
+
 class AdminServicesView(generics.ListCreateAPIView):
 
     def get(self, request):
@@ -610,70 +631,72 @@ class AdminServicesView(generics.ListCreateAPIView):
         services_list = []
 
         for service in services:
-            
+
             file_name = service.url.lstrip("/")
-            
+
             file_path = os.path.join(
                 settings.STATICFILES_DIRS[0], "services", file_name
             )
-            
+
             if (
-                not os.path.commonpath([settings.STATICFILES_DIRS[0], file_path])
-                == settings.STATICFILES_DIRS[0]
+                os.path.commonpath([settings.STATICFILES_DIRS[0], file_path])
+                != settings.STATICFILES_DIRS[0]
             ):
                 return Response(
-                    {"success": False,"error": "Archivo fuera de los límites permitidos"},
+                    {"success": False, "error": MENSAJ_ERROR_NO_ACCESO_CARPETA},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-                
+
             try:
                 with open(file_path, "rb") as f:
                     encoded_image = base64.b64encode(f.read()).decode("utf-8")
                     image_data = f"data:image/jpeg;base64,{encoded_image}"
             except FileNotFoundError:
                 image_data = "data:image/jpeg;base64,"
-            
+
             services_list.append(
                 {
                     "id": service.id,
                     "name": service.name,
                     "category": service.categoria.name,
                     "image": image_data,
-                    "description": service.description
+                    "description": service.description,
                 }
             )
 
         return Response(
             {"success": True, "services": services_list}, status=status.HTTP_200_OK
         )
-        
+
     def post(self, request):
-        print(request.POST.get('service'))
-        service_data = json.loads(request.data.get('service'))
+        print(request.POST.get("service"))
+        service_data = json.loads(request.data.get("service"))
         print("******************************")
-        print(request.data.get('fileData'))
-        file_data = json.loads(request.data.get('fileData'))
-        image = request.FILES.get('image')
-        
-        if(image):
+        print(request.data.get("fileData"))
+        file_data = json.loads(request.data.get("fileData"))
+        image = request.FILES.get("image")
+
+        if image:
             file_path = os.path.join(
-                settings.STATICFILES_DIRS[0], "services", file_data['uniqueNameWithExtension']
+                settings.STATICFILES_DIRS[0],
+                "services",
+                file_data["uniqueNameWithExtension"],
             )
-            
+
             # Asegúrate de que el directorio existe
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
-            
+
             # Guardar la imagen en la ruta especificada
             with open(file_path, "wb") as f:
                 f.write(image.read())
-                
-            categoria = CategoriesService.objects.get(name=service_data['category'])
-            
+
+            categoria = CategoriesService.objects.get(name=service_data["category"])
+
             service = Service(
-                name=service_data['name'],
+                name=service_data["name"],
                 categoria=categoria,
-                url=file_data['uniqueNameWithExtension'],
-                description=service_data['description']
+                url=file_data["uniqueNameWithExtension"],
+                description=service_data["description"],
             )
             service.save()
         else:
@@ -685,37 +708,53 @@ class AdminServicesView(generics.ListCreateAPIView):
             {"success": True, "message": "Servicio creado correctamente"},
             status=status.HTTP_200_OK,
         )
-        
+
+
 class AdminServiceView(generics.ListCreateAPIView):
     def put(self, request, pk):
-        try:          
-            
-            service_data = json.loads(request.data.get('service'))
+        try:
+            print("pk", pk)
+            service_data = json.loads(request.data.get("service"))
+            print(service_data)
             service = Service.objects.get(id=pk)
-            image = request.FILES.getlist('image')
+            print(service)
+            image = request.FILES.getlist("image")
+
+            print(image)
             unique_name_with_extension = service.url
-            
+
             if image:
-                file_data = json.loads(request.data.get('fileData'))
-                unique_name_with_extension = file_data['uniqueNameWithExtension']
+                image = image[0]
+                file_data = json.loads(request.data.get("fileData"))
+                unique_name_with_extension = file_data["uniqueNameWithExtension"]
+
+                image_path = os.path.join(
+                    settings.STATICFILES_DIRS[0], "services", service.url
+                )
+
+                if os.path.exists(image_path):
+                    os.remove(image_path)
+
                 file_path = os.path.join(
                     settings.STATICFILES_DIRS[0], "services", unique_name_with_extension
                 )
-                
+
                 # Asegúrate de que el directorio existe
                 os.makedirs(os.path.dirname(file_path), exist_ok=True)
-                
+
                 # Guardar la imagen en la ruta especificada
-                with open(file_path, 'wb') as f:
+                with open(file_path, "wb") as f:
                     f.write(image.read())
-                
+
                 service.url = unique_name_with_extension
-                
-            service.name = file_data['name']
-            service.description = file_data['description']
-            service.categoria = CategoriesService(id=file_data['category_id'])
+
+            service.name = service_data["name"]
+            service.description = service_data["description"]
+            service.categoria = CategoriesService.objects.get(
+                name=service_data["category"]
+            )
             service.save()
-            
+
             return Response(
                 {"success": True, "message": "Servicio actualizado correctamente"},
                 status=status.HTTP_200_OK,
@@ -724,7 +763,7 @@ class AdminServiceView(generics.ListCreateAPIView):
             return Response(
                 {
                     "success": False,
-                    "message": "Error interno del servidor, intente de nuevo",
+                    "message": MENSAJE_ERROR_500,
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
@@ -732,13 +771,15 @@ class AdminServiceView(generics.ListCreateAPIView):
     def delete(self, request, pk):
         try:
             service = Service.objects.get(id=pk)
-                            
-            image_path = os.path.join(settings.STATICFILES_DIRS[0], "services", service.url)
-        
+
+            image_path = os.path.join(
+                settings.STATICFILES_DIRS[0], "services", service.url
+            )
+
             # Eliminar el archivo del sistema de archivos si existe
             if os.path.exists(image_path):
                 os.remove(image_path)
-            
+
                 service.delete()
                 return Response(
                     {"success": True, "message": "Servicio eliminado correctamente"},
@@ -760,7 +801,122 @@ class AdminServiceView(generics.ListCreateAPIView):
             return Response(
                 {
                     "success": False,
-                    "message": "Error interno del servidor, intente de nuevo",
+                    "message": MENSAJE_ERROR_500,
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+class UserWorkerListView(generics.CreateAPIView):
+    queryset = MyUser.objects.all()
+    serializer_class = RegisterSerializer
+
+    def get(self, request):
+        current = MyUser.objects.get(id=request.user.id)
+        workers_list = []
+        if current.rol == USER_ROL_ADMIN:
+            workers = MyUser.objects.filter(rol=USER_ROL_WORKER, is_active=True).all()
+            for worker in workers:
+                workers_list.append(
+                    {
+                        "name": worker.name,
+                        "last_name": worker.last_name,
+                        "email": worker.email,
+                        "phone_number": worker.phone_number,
+                    }
+                )
+        else:
+            return Response(
+                {"success": False, "message": "Acceso denegado"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+        return Response(
+            {"success": True, "workers": workers_list}, status=status.HTTP_200_OK
+        )
+
+    def post(self, request):
+        current = MyUser.objects.get(id=request.user.id)
+        if current.rol == USER_ROL_ADMIN:
+            try:
+                worker_data = request.data
+                if (MyUser.objects.filter(email=worker_data["email"]).exists()):
+                    return Response(
+                        {"success": False, "message": "Correo ya registrado"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                worker_data["password"] = self.generate_random_password()
+                worker_data["rol"] = USER_ROL_WORKER.user_type
+                serializer = self.get_serializer(data=worker_data)
+                serializer.is_valid(raise_exception=True)
+                self.perform_create(serializer)
+
+                user_email = worker_data["email"]
+                user_password = worker_data["password"]
+                mail = EmailMultiAlternatives(
+                    subject="Su cuenta ha sido creada",
+                    body = f"Su usuario es: {user_email} y su contraseña temporal es: {user_password}. \nPor favor cambie su contraseña lo más pronto posible.",
+                    from_email=settings.EMAIL_HOST_USER,
+                    to=[user_email],
+                )
+                mail.send()
+
+                return Response(
+                    {"success": True, "message": "Trabajador creado correctamente"},
+                    status=status.HTTP_200_OK,
+                )
+            except ValidationError as e:
+                print(traceback.format_exc())
+                return Response(
+                    {"success": False, "message": str(e)},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            except Exception as e:
+                print(traceback.format_exc())
+                return Response(
+                    {
+                        "success": False,
+                        "message": MENSAJE_ERROR_500,
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+        return Response(
+            {"success": False, "message": "Acceso denegado"},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    def generate_random_password(self, length=12):
+        characters = string.ascii_letters + string.digits + string.punctuation
+        random_password = "".join(random.choice(characters) for i in range(length))
+        return random_password
+
+class WorkerToAdminView(generics.CreateAPIView):
+
+    def post(self, request):
+        current = MyUser.objects.get(id=request.user.id)
+        if current.rol == USER_ROL_ADMIN:
+            try:
+                worker_email = request.data["email"]
+                worker = MyUser.objects.get(email=worker_email)
+                worker.rol = USER_ROL_ADMIN
+                worker.save()
+                
+                return Response(
+                    {"success": True, "message": "Administrador creado correctamente"},
+                    status=status.HTTP_200_OK,
+                    
+                )
+
+            except MyUser.DoesNotExist:
+                return Response(
+                    {"success": False, "message": "Trabajador no encontrado"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            except Exception:
+                return Response(
+                    {
+                        "success": False,
+                        "message": MENSAJE_ERROR_500,
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )

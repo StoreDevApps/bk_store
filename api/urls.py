@@ -42,4 +42,6 @@ urlpatterns = [
     path('admin/carousel-image/<int:pk>/', views.DeleteCarouselImageView.as_view(), name="delete_carousel_image"),
     path('admin/services/', views.AdminServicesView.as_view(), name="admin_services"),
     path('admin/service/<int:pk>/', views.AdminServiceView.as_view(), name="admin_service"),
+    path('admin/list-workers/', views.UserWorkerListView.as_view(), name="admin_list_workers"),
+    path('admin/worker-to-admin/', views.WorkerToAdminView.as_view(), name="worker_to_admin"),
 ]
