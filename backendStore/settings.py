@@ -14,6 +14,10 @@ from datetime import timedelta
 import os
 from pathlib import Path
 
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -148,12 +152,22 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': 'det0noqxm',
+    'API_KEY': '349432665968468',
+    'API_SECRET': 'hM2qhzBR7WrQprTMZ1vJQwBDgE4'
+}
+
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'public'),
 ]
 STATIC_URL = '/static/'
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+MEDIA_URL = '/media/'
 
 
 

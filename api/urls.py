@@ -54,6 +54,10 @@ urlpatterns = [
     path('admin/worker-to-admin/', views.WorkerToAdminView.as_view(), name="worker_to_admin"),
     
     path('user/<int:user_id>/', viewsCliente.UserDetailView.as_view(), name='user_detail'),
+    
+    path('admin/products/', views.ListadoProductosView.as_view(), name="admin_products"),
+    path('admin/product-images/', views.ImagenesProductoView.as_view(), name="admin_product_images"),
+    path('products/<int:product_id>/images/', views.DeleteProductImageView.as_view(), name='delete-product-image'),
 ]
 
 if settings.DEBUG:

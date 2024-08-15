@@ -27,6 +27,7 @@ from api.models import (
     MyUser,
     Product,
     ProductCategory,
+    ProductImage,
     Rol,
     Service,
 )
@@ -958,3 +959,129 @@ class GetMultimediaProductoView(APIView):
         except Exception as e:
             print(e)
             return Response({"success": False, "message": "Error interno del servidor"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class ListadoProductosView(APIView):
+    
+    def get(self, request):
+        products = Product.objects.all()
+        products_list = [product.to_json() for product in products]
+        return Response({"success": True, "products": products_list}, status=status.HTTP_200_OK)
+    
+    def post(self, request):
+        product = Product()
+        codigo = request.data.get('codigo')
+        detail = request.data.get('detail')
+        presentation = request.data.get('presentation')
+        category = request.data.get('category')
+        brand = request.data.get('brand')
+        units = request.data.get('units')
+        duedate = request.data.get('duedate')
+        
+        try:
+            category = ProductCategory.objects.get(name=category)
+            
+            product.codigo = codigo
+            product.detail = detail
+            product.presentation = presentation
+            product.category = category
+            product.brand = brand
+            product.units = units
+            product.duedate = duedate
+            product.save()
+            return Response({"success": True, "message": "Producto creado correctamente"}, status=status.HTTP_200_OK)
+
+        except ProductCategory.DoesNotExist:
+            return Response({"success": False, "message": "Categória no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            print(e)
+            return Response({"success": False, "message": "Error interno del servidor"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+    def put(self, request):
+        id = request.data.get('id')
+        codigo = request.data.get('codigo')
+        detail = request.data.get('detail')
+        presentation = request.data.get('presentation')
+        category = request.data.get('category')
+        brand = request.data.get('brand') 
+        units = request.data.get('units')
+        duedate = request.data.get('duedate')
+        print(request.data)
+        
+        try:
+            category = ProductCategory.objects.get(name=category)
+            product = Product.objects.get(id=id)
+            product.codigo = codigo
+            product.detail = detail
+            product.presentation = presentation
+            product.category = category
+            product.brand = brand
+            product.units = units
+            product.duedate = duedate
+            product.save()
+            return Response({"success": True, "message": "Producto actualizado correctamente"}, status=status.HTTP_200_OK)
+
+        except Product.DoesNotExist:
+            return Response({"success": False, "message": "Producto no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+        
+        except ProductCategory.DoesNotExist:
+            return Response({"success": False, "message": "Categoria no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            print(e)
+            return Response({"success": False, "message": "Error interno del servidor"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def delete(self, request):
+        id = request.data.get('id')
+        try:
+            product = Product.objects.get(id=id)
+            product.delete()
+            return Response({"success": True, "message": "Producto eliminado correctamente"}, status=status.HTTP_200_OK)
+
+        except Product.DoesNotExist:
+            return Response({"success": False, "message": "Producto no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            print(e)
+            return Response({"success": False, "message": "Error interno del servidor"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    
+class ImagenesProductoView(APIView):
+
+    def post(self, request):
+        try:
+            images = request.FILES.getlist("images[]")
+            product_id = request.data["product_id"]
+            product = Product.objects.get(id=product_id)
+            for image in images:
+                ProductImage.objects.create(product=product, image=image)
+            return Response({"success": True, "message": "Imagenes guardadas correctamente"}, status=status.HTTP_200_OK)
+
+        except Product.DoesNotExist:
+            return Response({"success": False, "message": "Producto no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            print(e)
+            return Response({"success": False, "message": "Error interno del servidor"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+class DeleteProductImageView(APIView):
+    def delete(self, request, product_id):
+        image_url = request.data.get('url')
+        product = Product.objects.get(id=product_id)
+        print(image_url)
+        print(ProductImage.objects.filter(product=product, image=image_url))
+        product_images = ProductImage.objects.filter(product=product)
+        for image in product_images:
+            if image.image.url == image_url:
+                print(image.image.url)
+                print(image_url)
+                image.delete()
+                return Response({'message': 'Imagen eliminada exitosamente'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'error': 'Imagen no encontrada'}, status=status.HTTP_404_NOT_FOUND)
+
+class ProductoView(APIView):
+    
+    def put(self, request, product_id):
+        return Response({"success": True, "message": "Success"}, status=status.HTTP_200_OK)
+    
