@@ -137,9 +137,12 @@ class HasPurchasedView(APIView):
 
     def get(self, request, product_id):
         user = request.user
-        product = get_object_or_404(Product, id=product_id)
-        has_purchased = product.user_has_purchased(user)
-        return Response({"has_purchased": has_purchased})
+        try:
+            product = Product.objects.get(id=product_id)
+            has_purchased = user.ha_comprado(product)  # Método que verifica si el usuario ha comprado el producto
+            return Response({'has_purchased': has_purchased})
+        except Product.DoesNotExist:
+            return Response({'error': 'Producto no encontrado'}, status=404)
     
     permission_classes = [IsAuthenticated]
 
