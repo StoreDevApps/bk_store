@@ -5,7 +5,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from api.models import (    
-    CategoriesService,
+    Carrito,
     Comentario,
     MyUser,
     Product,
@@ -141,6 +141,14 @@ class HasPurchasedView(APIView):
         product = get_object_or_404(Product, id=product_id)
         has_purchased = product.user_has_purchased(user)
         return Response({"has_purchased": has_purchased})
+    
+class CartItemCountView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        carrito = Carrito.objects.get(usuario=request.user)
+        item_count = carrito.items.filter(orden__estado='Creando').count()
+        return Response({'count': item_count})
 
 class ProductPaginationView(APIView):
     permission_classes = [AllowAny]

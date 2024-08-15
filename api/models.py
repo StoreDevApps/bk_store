@@ -273,6 +273,7 @@ class ItemCarrito(models.Model):
 
 class Orden(models.Model):
     ESTADOS_ORDEN = [
+        ('Creando', 'Creando'),
         ('Enviada', 'Enviada'),
         ('Completada', 'Completada'),
         ('Eliminada', 'Eliminada'),
@@ -281,7 +282,7 @@ class Orden(models.Model):
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     fecha_creacion = models.DateTimeField(default=timezone.now)
     precio_total = models.FloatField()
-    estado = models.CharField(max_length=10, choices=ESTADOS_ORDEN, default='Enviada')
+    estado = models.CharField(max_length=10, choices=ESTADOS_ORDEN, default='Creando')
 
     def __str__(self):
         return f"Orden #{self.id} por {self.usuario.email} - {self.get_estado_display()}"

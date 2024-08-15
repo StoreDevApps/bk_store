@@ -51,12 +51,13 @@ urlpatterns = [
     path('admin/services/', views.AdminServicesView.as_view(), name="admin_services"),
     path('admin/service/<int:pk>/', views.AdminServiceView.as_view(), name="admin_service"),
 
-     path('user/<int:user_id>/', viewsCliente.UserDetailView.as_view(), name='user_detail'),
-     path('products/<int:product_id>/', viewsCliente.ProductDetailView.as_view(), name='product-detail'),
-     path('products/<int:product_id>/comments/', viewsCliente.ProductCommentsView.as_view(), name='product-comments'),
+    path('user/<int:user_id>/', viewsCliente.UserDetailView.as_view(), name='user_detail'),
+    path('products/<int:product_id>/', viewsCliente.ProductDetailView.as_view(), name='product-detail'),
+    path('products/<int:product_id>/comments/', viewsCliente.ProductCommentsView.as_view(), name='product-comments'),
     path('products/<int:product_id>/comments/submit', viewsCliente.SubmitCommentView.as_view(), name='submit-comment'),
-        path('products/<int:product_id>/has-purchased', viewsCliente.HasPurchasedView.as_view(), name='has-purchased'),
-    path('products/<int:product_id>/comments/update', viewsCliente.UpdateCommentView.as_view(), name='update-comment')        
+    path('products/<int:product_id>/has-purchased', viewsCliente.HasPurchasedView.as_view(), name='has-purchased'),
+    path('products/<int:product_id>/comments/update', viewsCliente.UpdateCommentView.as_view(), name='update-comment'),
+    path('carrito/items/count', viewsCliente.CartItemCountView.as_view(), name='cart-item-count'),
 
 ]
 
