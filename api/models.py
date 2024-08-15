@@ -1,11 +1,13 @@
+from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.db import models
-
+from django.core.exceptions import ValidationError
 from api.managers import MyUserManager
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
-
+from django.db.models import Avg, Count
+from django.db.models import Q
 
 class Rol(models.Model):
     '''
@@ -48,6 +50,19 @@ class MyUser(AbstractBaseUser, PermissionsMixin):
             "is_active": self.is_active,
             "is_staff": self.is_staff,
         }
+    
+
+    def ha_comprado(self, producto):
+        """
+        Verifica si el usuario ha comprado un producto específico.
+        Solo cuenta las órdenes con estado 'Completa'.
+        """
+        return Orden.objects.filter(
+            usuario=self,
+            estado='Completa',
+            items__producto=producto
+        ).exists()
+        
 
 
 class ProductCategory(models.Model):
@@ -95,10 +110,15 @@ class Product(models.Model):
     def __str__(self):
         return str(self.detail) + " (" + self.brand + ")"
 
+    def has_commented(self, user):
+        return Comentario.objects.filter(usuario=user, producto=self).exists()
+
     def to_json(self):
             # Obtener el último registro de historial de compras
             last_history = self.producthistory_set.order_by('-date').first()
             price = last_history.unit_sales_price if last_history else None
+            average_rating, rating_count = self.calcular_puntuacion_promedio()
+
 
             # Recopilar imágenes
             images = [image.url or image.image.url for image in self.images.all() if image.url or image.image]
@@ -123,6 +143,25 @@ class Product(models.Model):
                 "price": price,  # Incluye el precio en el JSON
                 "status": status
             }
+
+    def calcular_puntuacion_promedio(self):
+        promedio = Comentario.objects.filter(producto=self).aggregate(
+            average=Avg('puntuacion'),
+            count=Count('puntuacion')
+        )
+        average_rating = promedio['average'] if promedio['average'] is not None else 0
+        count = promedio['count'] if promedio['count'] is not None else 0
+        return average_rating, count
+    
+    def user_has_purchased(self, user):
+        """
+        Verifica si el usuario ha comprado el producto.
+        """
+        return DetalleOrden.objects.filter(
+            Q(orden__usuario=user) & 
+            Q(orden__estado='Completada') & 
+            Q(producto=self)
+        ).exists()
 
 
 class ProductImage(models.Model):
@@ -211,3 +250,74 @@ class Service(models.Model):
     
     def __str__(self):
         return str(self.name)
+
+class Carrito(models.Model):
+    usuario = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return f"Carrito de {self.usuario.email}"
+
+    def get_precio_total(self):
+        return sum(item.get_precio_total() for item in self.items.all())
+
+    def limpiar(self):
+        self.items.all().delete()        
+
+class ItemCarrito(models.Model):
+    carrito = models.ForeignKey(Carrito, related_name='items', on_delete=models.CASCADE)
+    producto = models.ForeignKey('Product', on_delete=models.CASCADE)
+    cantidad = models.PositiveIntegerField(default=1)
+
+    def __str__(self):
+        return f"{self.cantidad} x {self.producto.detail}"
+
+    def get_precio_total(self):
+        return self.cantidad * self.producto.price
+
+
+class Orden(models.Model):
+    ESTADOS_ORDEN = [
+        ('Creando', 'Creando'),
+        ('Enviada', 'Enviada'),
+        ('Completada', 'Completada'),
+        ('Eliminada', 'Eliminada'),
+    ]
+
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    precio_total = models.FloatField()
+    estado = models.CharField(max_length=10, choices=ESTADOS_ORDEN, default='Creando')
+
+    def __str__(self):
+        return f"Orden #{self.id} por {self.usuario.email} - {self.get_estado_display()}"
+
+    def get_precio_total(self):
+        return sum(item.get_precio_total() for item in self.items.all())
+
+class DetalleOrden(models.Model):
+    orden = models.ForeignKey(Orden, related_name='items', on_delete=models.CASCADE)
+    producto = models.ForeignKey('Product', on_delete=models.SET_NULL, null=True)
+    cantidad = models.PositiveIntegerField(default=1)
+    precio = models.FloatField()  # Precio en el momento de la compra
+
+    def __str__(self):
+        return f"{self.cantidad} x {self.producto.detail} @ {self.precio} cada uno"
+
+    @property
+    def get_precio_total(self):
+        return self.cantidad * self.precio
+    
+class Comentario(models.Model):
+    usuario = models.ForeignKey(MyUser, on_delete=models.CASCADE)
+    producto = models.ForeignKey('Product', on_delete=models.CASCADE)
+    comentario = models.TextField()
+    puntuacion = models.PositiveSmallIntegerField(default=5)  # De 1 a 5
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('usuario', 'producto')  # Un usuario solo puede comentar una vez por producto
+
+    def __str__(self):
+        return f"Comentario de {self.usuario.email} en {self.producto.detail} con puntuación {self.puntuacion}"

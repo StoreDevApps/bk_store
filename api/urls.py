@@ -58,6 +58,14 @@ urlpatterns = [
     path('admin/products/', views.ListadoProductosView.as_view(), name="admin_products"),
     path('admin/product-images/', views.ImagenesProductoView.as_view(), name="admin_product_images"),
     path('products/<int:product_id>/images/', views.DeleteProductImageView.as_view(), name='delete-product-image'),
+
+    path('products/<int:product_id>/', viewsCliente.ProductDetailView.as_view(), name='product-detail'),
+    path('products/<int:product_id>/comments/', viewsCliente.ProductCommentsView.as_view(), name='product-comments'),
+    path('products/<int:product_id>/comments/submit', viewsCliente.SubmitCommentView.as_view(), name='submit-comment'),
+    path('products/<int:product_id>/has-purchased', viewsCliente.HasPurchasedView.as_view(), name='has-purchased'),
+    path('products/<int:product_id>/comments/update', viewsCliente.UpdateCommentView.as_view(), name='update-comment'),
+    path('carrito/items/count', viewsCliente.CartItemCountView.as_view(), name='cart-item-count'),
+
 ]
 
 if settings.DEBUG:
