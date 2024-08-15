@@ -6,7 +6,7 @@ from rest_framework.response import Response
 
 from api.models import (    
     CategoriesService,
-    CodigosReestablecimiento,
+    Comentario,
     MyUser,
     Product,
     ProductHistory,
@@ -18,6 +18,8 @@ from api.models import (
 from django.db.models import OuterRef, Subquery, FloatField
 from django.db.models.functions import Cast
 from rest_framework.views import APIView
+from .serializers import ComentarioSerializer
+from django.shortcuts import get_object_or_404
 
 from api.serializers import ProductSerializer
 
@@ -47,6 +49,89 @@ class ProductDetailView(APIView):
             return Response(serializer.data)
         except Product.DoesNotExist:
             return Response({"error": "Product not found"}, status=404)
+ 
+class ProductCommentsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, product_id):
+        product = Product.objects.get(id=product_id)
+        
+        # Verificar si el usuario ha comentado el producto
+        user_comment = Comentario.objects.filter(producto=product, usuario=request.user).first()
+        user_has_commented = user_comment is not None
+
+        # Obtener todos los comentarios excepto el del usuario actual
+        comments = Comentario.objects.filter(producto=product).exclude(usuario=request.user)
+        comments_data = [
+            {
+                "user_name": f"{comment.usuario.name} {comment.usuario.last_name}".strip() if comment.usuario.name else "Usuario sin nombre",
+                "rating": comment.puntuacion,
+                "comment": comment.comentario,
+                "createdAt": comment.fecha_creacion,
+                "updatedAt": comment.fecha_actualizacion if comment.fecha_actualizacion != comment.fecha_creacion else None
+            } for comment in comments
+        ]
+        
+        # Estructurar la respuesta
+        response_data = {
+            "comments": comments_data,
+            "user_has_commented": user_has_commented,
+            "user_comment": {
+                "name": f"{request.user.name} {request.user.last_name}".strip(),
+                "rating": user_comment.puntuacion,
+                "comment": user_comment.comentario,
+                "createdAt": user_comment.fecha_creacion,
+                "updatedAt": user_comment.fecha_actualizacion if user_comment.fecha_actualizacion != user_comment.fecha_creacion else None
+            } if user_has_commented else None
+        }
+
+        return Response(response_data)
+
+
+class SubmitCommentView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, product_id):
+        product = Product.objects.get(id=product_id)
+        user = request.user
+
+        # Verificar si el usuario ha comprado el producto
+        if not product.user_has_purchased(user):
+            return Response({"error": "No puedes comentar porque no has comprado este producto."}, status=403)
+
+        # Verificar si el usuario ya ha comentado
+        if Comentario.objects.filter(producto=product, usuario=user).exists():
+            return Response({"error": "Ya has comentado este producto."}, status=400)
+
+        # Crear el comentario y la puntuación
+        comentario_text = request.data.get('comment')
+        puntuacion_valor = request.data.get('rating')
+
+        if not comentario_text or not puntuacion_valor:
+            return Response({"error": "Debe proporcionar tanto comentario como puntuación."}, status=400)
+
+        Comentario.objects.create(
+            usuario=user,
+            producto=product,
+            comentario=comentario_text,
+            puntuacion=puntuacion_valor
+        )
+
+        return Response({"success": "Comentario y puntuación creados correctamente."}, status=201)
+
+
+
+class UpdateCommentView(APIView):
+    def put(self, request, product_id):
+        user = request.user
+        comentario = get_object_or_404(Comentario, producto_id=product_id, usuario=user)
+
+        serializer = ComentarioSerializer(comentario, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            print(serializer.data)  # Verifica qué datos se están guardando
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class ProductPaginationView(APIView):
     permission_classes = [AllowAny]

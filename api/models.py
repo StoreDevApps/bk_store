@@ -7,6 +7,7 @@ from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from django.db.models import Avg, Count
+from django.db.models import Q
 
 class Rol(models.Model):
     '''
@@ -61,6 +62,7 @@ class MyUser(AbstractBaseUser, PermissionsMixin):
             estado='Completa',
             items__producto=producto
         ).exists()
+        
 
 
 class ProductCategory(models.Model):
@@ -106,19 +108,9 @@ class Product(models.Model):
 
     def __str__(self):
         return str(self.detail) + " (" + self.brand + ")"
-    
-    def calcular_puntuacion_promedio(self):
-            """
-            Calcula la puntuación promedio del producto basado en todas las puntuaciones.
-            """
-            puntuaciones = Puntuacion.objects.filter(producto=self)
-            if puntuaciones.exists():
-                promedio = puntuaciones.aggregate(
-                    average=Avg('puntuacion'), 
-                    count=Count('puntuacion')
-                )
-                return round(promedio['average'], 2), promedio['count']
-            return None, 0  # Returns 0 if no ratings exist
+
+    def has_commented(self, user):
+        return Comentario.objects.filter(usuario=user, producto=self).exists()
 
     def to_json(self):
             # Obtener el último registro de historial de compras
@@ -147,19 +139,24 @@ class Product(models.Model):
                 "price": price  # Incluye el precio en el JSON
             }
 
-    
     def calcular_puntuacion_promedio(self):
-            """
-            Calcula la puntuación promedio del producto basado en todas las puntuaciones.
-            """
-            puntuaciones = Puntuacion.objects.filter(producto=self)
-            if puntuaciones.exists():
-                promedio = puntuaciones.aggregate(
-                    average=Avg('puntuacion'), 
-                    count=Count('puntuacion')
-                )
-                return round(promedio['average'], 2), promedio['count']
-            return 0, 0  # Return a default value when there are no ratings
+        promedio = Comentario.objects.filter(producto=self).aggregate(
+            average=Avg('puntuacion'),
+            count=Count('puntuacion')
+        )
+        average_rating = promedio['average'] if promedio['average'] is not None else 0
+        count = promedio['count'] if promedio['count'] is not None else 0
+        return average_rating, count
+    
+    def user_has_purchased(self, user):
+        """
+        Verifica si el usuario ha comprado el producto.
+        """
+        return DetalleOrden.objects.filter(
+            Q(orden__usuario=user) & 
+            Q(orden__estado='Completada') & 
+            Q(producto=self)
+        ).exists()
 
 
 class ProductImage(models.Model):
@@ -305,51 +302,16 @@ class DetalleOrden(models.Model):
     def get_precio_total(self):
         return self.cantidad * self.precio
     
-
 class Comentario(models.Model):
-    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    usuario = models.ForeignKey(MyUser, on_delete=models.CASCADE)
     producto = models.ForeignKey('Product', on_delete=models.CASCADE)
     comentario = models.TextField()
+    puntuacion = models.PositiveSmallIntegerField(default=5)  # De 1 a 5
     fecha_creacion = models.DateTimeField(default=timezone.now)
     fecha_actualizacion = models.DateTimeField(auto_now=True)
 
     class Meta:
         unique_together = ('usuario', 'producto')  # Un usuario solo puede comentar una vez por producto
-        
-    def __str__(self):
-        return f"Comentario de {self.usuario.email} en {self.producto.detail}"
-"""
-    def save(self, *args, **kwargs):
-        # Verificar si el usuario ha comprado el producto
-        if not self.usuario.ha_comprado(self.producto):
-            raise ValidationError("Solo puedes comentar si has comprado este producto.")
-        
-        # Verificar si el usuario ha asignado una puntuación antes de comentar
-        if not Puntuacion.objects.filter(usuario=self.usuario, producto=self.producto).exists():
-            raise ValidationError("Debes asignar una puntuación antes de comentar.")
-
-        super().save(*args, **kwargs)"""
-
-    
-
-class Puntuacion(models.Model):
-    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    producto = models.ForeignKey('Product', on_delete=models.CASCADE)
-    puntuacion = models.PositiveSmallIntegerField()  # Por ejemplo, de 1 a 5
-    fecha_creacion = models.DateTimeField(default=timezone.now)
-    fecha_actualizacion = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        unique_together = ('usuario', 'producto')  # Un usuario solo puede puntuar una vez por producto
 
     def __str__(self):
-        return f"Puntuación de {self.usuario.email} en {self.producto.detail}: {self.puntuacion}"
-    
-    """
-    def save(self, *args, **kwargs):
-        # Verificar si el usuario ha comprado el producto
-        if not self.usuario.ha_comprado(self.producto):
-            raise ValidationError("Solo puedes puntuar si has comprado este producto.")
-
-        super().save(*args, **kwargs)
-"""
+        return f"Comentario de {self.usuario.email} en {self.producto.detail} con puntuación {self.puntuacion}"
