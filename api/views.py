@@ -35,9 +35,9 @@ from api.models import (
 from .serializers import CustomTokenObtainPairSerializer, RegisterSerializer
 
 
-USER_ROL_CLIENT = Rol.objects.get_or_create(user_type="cliente")[0]
-USER_ROL_ADMIN = Rol.objects.get_or_create(user_type="administrador")[0]
-USER_ROL_WORKER = Rol.objects.get_or_create(user_type="trabajador")[0]
+# USER_ROL_CLIENT = Rol.objects.get_or_create(user_type="cliente")[0]
+# USER_ROL_ADMIN = Rol.objects.get_or_create(user_type="administrador")[0]
+# USER_ROL_WORKER = Rol.objects.get_or_create(user_type="trabajador")[0]
 
 MENSAJE_ERROR_500 = "Error interno del servidor, intente de nuevo"
 MENSAJ_ERROR_NO_ACCESO_CARPETA = "Archivo fuera de los límites permitidos"
