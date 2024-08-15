@@ -52,6 +52,7 @@ urlpatterns = [
     path('admin/service/<int:pk>/', views.AdminServiceView.as_view(), name="admin_service"),
 
      path('user/<int:user_id>/', viewsCliente.UserDetailView.as_view(), name='user_detail'),
+     path('products/<int:product_id>/', viewsCliente.ProductDetailView.as_view(), name='product-detail'),
 ]
 
 if settings.DEBUG:

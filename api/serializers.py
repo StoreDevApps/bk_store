@@ -1,8 +1,8 @@
 from rest_framework import serializers
-from api.models import MyUser, Rol
+from api.models import MyUser, Product, Rol
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
-
+from .models import Product
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -62,3 +62,27 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token["email"] = user.email
 
         return token
+    
+    from rest_framework import serializers
+
+
+class ProductSerializer(serializers.ModelSerializer):
+    price = serializers.SerializerMethodField()
+    average_rating = serializers.SerializerMethodField()
+    rating_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Product
+        fields = ['id', 'presentation', 'category', 'detail', 'brand', 'codigo', 'duedate', 'state', 'aud_created_at', 'images', 'videos', 'price', 'average_rating', 'rating_count']
+
+    def get_price(self, obj):
+        last_history = obj.producthistory_set.order_by('-date').first()
+        return last_history.unit_sales_price if last_history else None
+
+    def get_average_rating(self, obj):
+        average_rating, _ = obj.calcular_puntuacion_promedio()
+        return average_rating
+
+    def get_rating_count(self, obj):
+        _, rating_count = obj.calcular_puntuacion_promedio()
+        return rating_count

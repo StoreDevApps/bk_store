@@ -6,7 +6,7 @@ from api.managers import MyUserManager
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
-
+from django.db.models import Avg, Count
 
 class Rol(models.Model):
     '''
@@ -106,11 +106,26 @@ class Product(models.Model):
 
     def __str__(self):
         return str(self.detail) + " (" + self.brand + ")"
+    
+    def calcular_puntuacion_promedio(self):
+            """
+            Calcula la puntuación promedio del producto basado en todas las puntuaciones.
+            """
+            puntuaciones = Puntuacion.objects.filter(producto=self)
+            if puntuaciones.exists():
+                promedio = puntuaciones.aggregate(
+                    average=Avg('puntuacion'), 
+                    count=Count('puntuacion')
+                )
+                return round(promedio['average'], 2), promedio['count']
+            return None, 0  # Returns 0 if no ratings exist
 
     def to_json(self):
             # Obtener el último registro de historial de compras
             last_history = self.producthistory_set.order_by('-date').first()
             price = last_history.unit_sales_price if last_history else None
+            average_rating, rating_count = self.calcular_puntuacion_promedio()
+
 
             # Recopilar imágenes
             images = [image.url or image.image.url for image in self.images.all() if image.url or image.image]
@@ -131,16 +146,20 @@ class Product(models.Model):
                 "videos": videos,
                 "price": price  # Incluye el precio en el JSON
             }
+
     
     def calcular_puntuacion_promedio(self):
-        """
-        Calcula la puntuación promedio del producto basado en todas las puntuaciones.
-        """
-        puntuaciones = Puntuacion.objects.filter(producto=self)
-        if puntuaciones.exists():
-            promedio = puntuaciones.aggregate(models.Avg('puntuacion'))['puntuacion__avg']
-            return round(promedio, 2)  # Redondear a 2 decimales
-        return None 
+            """
+            Calcula la puntuación promedio del producto basado en todas las puntuaciones.
+            """
+            puntuaciones = Puntuacion.objects.filter(producto=self)
+            if puntuaciones.exists():
+                promedio = puntuaciones.aggregate(
+                    average=Avg('puntuacion'), 
+                    count=Count('puntuacion')
+                )
+                return round(promedio['average'], 2), promedio['count']
+            return 0, 0  # Return a default value when there are no ratings
 
 
 class ProductImage(models.Model):
@@ -296,7 +315,10 @@ class Comentario(models.Model):
 
     class Meta:
         unique_together = ('usuario', 'producto')  # Un usuario solo puede comentar una vez por producto
-
+        
+    def __str__(self):
+        return f"Comentario de {self.usuario.email} en {self.producto.detail}"
+"""
     def save(self, *args, **kwargs):
         # Verificar si el usuario ha comprado el producto
         if not self.usuario.ha_comprado(self.producto):
@@ -306,10 +328,9 @@ class Comentario(models.Model):
         if not Puntuacion.objects.filter(usuario=self.usuario, producto=self.producto).exists():
             raise ValidationError("Debes asignar una puntuación antes de comentar.")
 
-        super().save(*args, **kwargs)
+        super().save(*args, **kwargs)"""
 
-    def __str__(self):
-        return f"Comentario de {self.usuario.email} en {self.producto.detail}"
+    
 
 class Puntuacion(models.Model):
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
@@ -321,12 +342,14 @@ class Puntuacion(models.Model):
     class Meta:
         unique_together = ('usuario', 'producto')  # Un usuario solo puede puntuar una vez por producto
 
+    def __str__(self):
+        return f"Puntuación de {self.usuario.email} en {self.producto.detail}: {self.puntuacion}"
+    
+    """
     def save(self, *args, **kwargs):
         # Verificar si el usuario ha comprado el producto
         if not self.usuario.ha_comprado(self.producto):
             raise ValidationError("Solo puedes puntuar si has comprado este producto.")
 
         super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f"Puntuación de {self.usuario.email} en {self.producto.detail}: {self.puntuacion}"
+"""

@@ -816,3 +816,5 @@ class GetMultimediaProductoView(APIView):
         except Exception as e:
             print(e)
             return Response({"success": False, "message": "Error interno del servidor"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+

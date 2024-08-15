@@ -18,8 +18,35 @@ from api.models import (
 from django.db.models import OuterRef, Subquery, FloatField
 from django.db.models.functions import Cast
 from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
+
+from api.serializers import ProductSerializer
+
+class UserDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, user_id):
+        try:
+            user = MyUser.objects.get(id=user_id)
+            return Response({
+                "name": user.name,
+                "last_name": user.last_name,
+                "email": user.email,
+                "role": user.rol.user_type if user.rol else None,
+            })
+        except MyUser.DoesNotExist:
+            return Response({"error": "User not found"}, status=404)
+
+
+class ProductDetailView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, product_id):
+        try:
+            product = Product.objects.get(id=product_id)
+            serializer = ProductSerializer(product)
+            return Response(serializer.data)
+        except Product.DoesNotExist:
+            return Response({"error": "Product not found"}, status=404)
 
 class ProductPaginationView(APIView):
     permission_classes = [AllowAny]
@@ -209,17 +236,3 @@ class ProductPaginationView(APIView):
             status=status.HTTP_200_OK
         )
 
-class UserDetailView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request, user_id):
-        try:
-            user = MyUser.objects.get(id=user_id)
-            return Response({
-                "name": user.name,
-                "last_name": user.last_name,
-                "email": user.email,
-                "role": user.rol.user_type if user.rol else None,
-            })
-        except MyUser.DoesNotExist:
-            return Response({"error": "User not found"}, status=404)
