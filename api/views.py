@@ -34,10 +34,14 @@ from api.models import (
 
 from .serializers import CustomTokenObtainPairSerializer, RegisterSerializer
 
+def get_rol_client():
+    return Rol.objects.get_or_create(user_type="cliente")[0]
 
-# USER_ROL_CLIENT = Rol.objects.get_or_create(user_type="cliente")[0]
-# USER_ROL_ADMIN = Rol.objects.get_or_create(user_type="administrador")[0]
-# USER_ROL_WORKER = Rol.objects.get_or_create(user_type="trabajador")[0]
+def get_rol_admin():
+    return Rol.objects.get_or_create(user_type="administrador")[0]
+
+def get_rol_worker():
+    return Rol.objects.get_or_create(user_type="trabajador")[0]
 
 MENSAJE_ERROR_500 = "Error interno del servidor, intente de nuevo"
 MENSAJ_ERROR_NO_ACCESO_CARPETA = "Archivo fuera de los límites permitidos"
@@ -820,8 +824,8 @@ class UserWorkerListView(generics.CreateAPIView):
     def get(self, request):
         current = MyUser.objects.get(id=request.user.id)
         workers_list = []
-        if current.rol == USER_ROL_ADMIN:
-            workers = MyUser.objects.filter(rol=USER_ROL_WORKER, is_active=True).all()
+        if current.rol == get_rol_admin():
+            workers = MyUser.objects.filter(rol=get_rol_worker(), is_active=True).all()
             for worker in workers:
                 workers_list.append(
                     {
@@ -842,7 +846,7 @@ class UserWorkerListView(generics.CreateAPIView):
 
     def post(self, request):
         current = MyUser.objects.get(id=request.user.id)
-        if current.rol == USER_ROL_ADMIN:
+        if current.rol == get_rol_admin():
             try:
                 worker_data = request.data
                 if (MyUser.objects.filter(email=worker_data["email"]).exists()):
@@ -851,7 +855,7 @@ class UserWorkerListView(generics.CreateAPIView):
                         status=status.HTTP_400_BAD_REQUEST,
                     )
                 worker_data["password"] = self.generate_random_password()
-                worker_data["rol"] = USER_ROL_WORKER.user_type
+                worker_data["rol"] = get_rol_worker().user_type
                 serializer = self.get_serializer(data=worker_data)
                 serializer.is_valid(raise_exception=True)
                 self.perform_create(serializer)
@@ -900,11 +904,11 @@ class WorkerToAdminView(generics.CreateAPIView):
 
     def post(self, request):
         current = MyUser.objects.get(id=request.user.id)
-        if current.rol == USER_ROL_ADMIN:
+        if current.rol == get_rol_admin():
             try:
                 worker_email = request.data["email"]
                 worker = MyUser.objects.get(email=worker_email)
-                worker.rol = USER_ROL_ADMIN
+                worker.rol = get_rol_admin()
                 worker.save()
                 
                 return Response(
