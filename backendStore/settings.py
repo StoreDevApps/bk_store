@@ -14,9 +14,6 @@ from datetime import timedelta
 import os
 from pathlib import Path
 
-import cloudinary
-import cloudinary.uploader
-import cloudinary.api
 import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.

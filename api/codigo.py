@@ -1,4 +1,4 @@
-from api.models import (Product,ProductImage)
+from api.models import (Product)
 
 product = Product.objects.get(codigo='')
 images = product.images.all()
