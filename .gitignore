@@ -3,3 +3,7 @@ __pycache__
 api/__pycache__/
 api/migrations/__pycache__/
 backendStore/__pycache__/
+db.sqlite3
+
+/static/
+/staticfiles/
