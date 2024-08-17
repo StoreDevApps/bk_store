@@ -288,7 +288,12 @@ class ItemCarrito(models.Model):
         return f"{self.cantidad} x {self.producto.detail}"
 
     def get_precio_total(self):
-        return self.cantidad * self.producto.price
+        last_history = (
+            ProductHistory.objects.filter(product=self.producto)
+            .order_by("-date")
+            .first()
+        )
+        return self.cantidad * (last_history.unit_sales_price if last_history else 0)
 
 
 class Orden(models.Model):
@@ -342,5 +347,7 @@ class Comentario(models.Model):
         )  # Un usuario solo puede comentar una vez por producto
 
     def __str__(self):
-        return f"""Comentario de {self.usuario.email} en {self.producto.detail}
-            con puntuación {self.puntuacion}"""
+        return (
+            f"Comentario de {self.usuario.email} en {self.producto.detail} "
+            f"con puntuación {self.puntuacion}"
+        )

@@ -141,8 +141,10 @@ class EnviarCodigo(generics.GenericAPIView):
             )
             msg.attach_alternative(content, "text/html")
             msg.send()
-            message = """Se ha enviado el código a su correo. Por favor revíselo y
-            también a la mano para poder cambiar su contraseña."""
+            message = (
+                "Se ha enviado el código a su correo. Por favor revíselo y "
+                "también a la mano para poder cambiar su contraseña."
+            )
             return Response(
                 {
                     "success": True,
@@ -866,9 +868,10 @@ class UserWorkerListView(generics.CreateAPIView):
                 user_password = worker_data["password"]
                 mail = EmailMultiAlternatives(
                     subject="Su cuenta ha sido creada",
-                    body=f"""Su usuario es: {user_email} y su contraseña temporal
-                    es: {user_password}. \nPor favor cambie su contraseña
-                    lo más pronto posible.""",
+                    body=(
+                        f"Su usuario es: {user_email} y su contraseña temporal es: "
+                        f"{user_password}. Por favor cambie su contraseña lo más pronto posible."
+                    ),
                     from_email=settings.EMAIL_HOST_USER,
                     to=[user_email],
                 )
