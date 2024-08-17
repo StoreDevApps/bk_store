@@ -103,6 +103,7 @@ class Product(models.Model):
     brand = models.CharField(max_length=30)
     codigo = models.CharField(max_length=30, unique=True)
     duedate = models.DateField(blank=True, null=True)
+    units = models.IntegerField(default=0)
     state = models.CharField(max_length=1, default='A')
     aud_created_at = models.DateTimeField(default=timezone.now)
 
@@ -123,6 +124,8 @@ class Product(models.Model):
             images = [image.url or image.image.url for image in self.images.all() if image.url or image.image]
             # Recopilar videos
             videos = [video.url for video in self.videos.all() if video.url]
+            
+            status = "En stock" if self.units > 10 else "Poco stock" if self.units > 0 else "Agotado"
 
             return {
                 "id": self.id,
@@ -133,10 +136,12 @@ class Product(models.Model):
                 "codigo": self.codigo,
                 "duedate": self.duedate,
                 "state": self.state,
+                "units": self.units,
                 "aud_created_at": self.aud_created_at.isoformat() if self.aud_created_at else None,
                 "images": images,
                 "videos": videos,
-                "price": price  # Incluye el precio en el JSON
+                "price": price,  # Incluye el precio en el JSON
+                "status": status
             }
 
     def calcular_puntuacion_promedio(self):

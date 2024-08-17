@@ -50,8 +50,15 @@ urlpatterns = [
     path('admin/carousel-image/<int:pk>/', views.DeleteCarouselImageView.as_view(), name="delete_carousel_image"),
     path('admin/services/', views.AdminServicesView.as_view(), name="admin_services"),
     path('admin/service/<int:pk>/', views.AdminServiceView.as_view(), name="admin_service"),
-
+    path('admin/list-workers/', views.UserWorkerListView.as_view(), name="admin_list_workers"),
+    path('admin/worker-to-admin/', views.WorkerToAdminView.as_view(), name="worker_to_admin"),
+    
     path('user/<int:user_id>/', viewsCliente.UserDetailView.as_view(), name='user_detail'),
+    
+    path('admin/products/', views.ListadoProductosView.as_view(), name="admin_products"),
+    path('admin/product-images/', views.ImagenesProductoView.as_view(), name="admin_product_images"),
+    path('products/<int:product_id>/images/', views.DeleteProductImageView.as_view(), name='delete-product-image'),
+
     path('products/<int:product_id>/', viewsCliente.ProductDetailView.as_view(), name='product-detail'),
     path('products/<int:product_id>/comments/', viewsCliente.ProductCommentsView.as_view(), name='product-comments'),
     path('products/<int:product_id>/comments/submit', viewsCliente.SubmitCommentView.as_view(), name='submit-comment'),
