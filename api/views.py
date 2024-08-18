@@ -15,8 +15,6 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
-from django.core.files.storage import default_storage
-from django.core.files.base import ContentFile
 from rest_framework.views import APIView
 
 
@@ -35,16 +33,21 @@ from api.models import (
 from .serializers import CustomTokenObtainPairSerializer, RegisterSerializer
 
 
-USER_ROL_CLIENT = Rol.objects.get_or_create(user_type="cliente")[0]
-USER_ROL_ADMIN = Rol.objects.get_or_create(user_type="administrador")[0]
-USER_ROL_WORKER = Rol.objects.get_or_create(user_type="trabajador")[0]
+def get_rol_client():
+    return Rol.objects.get_or_create(user_type="cliente")[0]
+
+
+def get_rol_admin():
+    return Rol.objects.get_or_create(user_type="administrador")[0]
+
+
+def get_rol_worker():
+    return Rol.objects.get_or_create(user_type="trabajador")[0]
+
 
 MENSAJE_ERROR_500 = "Error interno del servidor, intente de nuevo"
 MENSAJ_ERROR_NO_ACCESO_CARPETA = "Archivo fuera de los límites permitidos"
 
-
-MENSAJE_ERROR_500 = "Error interno del servidor, intente de nuevo"
-MENSAJ_ERROR_NO_ACCESO_CARPETA = "Archivo fuera de los límites permitidos"
 
 class RegisterView(generics.CreateAPIView):
     queryset = MyUser.objects.all()
@@ -138,10 +141,14 @@ class EnviarCodigo(generics.GenericAPIView):
             )
             msg.attach_alternative(content, "text/html")
             msg.send()
+            message = (
+                "Se ha enviado el código a su correo. Por favor revíselo y "
+                "también a la mano para poder cambiar su contraseña."
+            )
             return Response(
                 {
                     "success": True,
-                    "message": "Se ha enviado el código a su correo. Por favor revíselo y téngalo a la mano para poder cambiar su contraseña.",
+                    "message": message,
                     "codigo": codigo,
                 }
             )
@@ -432,6 +439,7 @@ class ListOfProductsView(generics.ListCreateAPIView):
         return Response(
             {"success": True, "products": products_list}, status=status.HTTP_200_OK
         )
+
 
 class CarouselImageHomeView(generics.ListCreateAPIView):
 
@@ -820,8 +828,8 @@ class UserWorkerListView(generics.CreateAPIView):
     def get(self, request):
         current = MyUser.objects.get(id=request.user.id)
         workers_list = []
-        if current.rol == USER_ROL_ADMIN:
-            workers = MyUser.objects.filter(rol=USER_ROL_WORKER, is_active=True).all()
+        if current.rol == get_rol_admin():
+            workers = MyUser.objects.filter(rol=get_rol_worker(), is_active=True).all()
             for worker in workers:
                 workers_list.append(
                     {
@@ -842,16 +850,16 @@ class UserWorkerListView(generics.CreateAPIView):
 
     def post(self, request):
         current = MyUser.objects.get(id=request.user.id)
-        if current.rol == USER_ROL_ADMIN:
+        if current.rol == get_rol_admin():
             try:
                 worker_data = request.data
-                if (MyUser.objects.filter(email=worker_data["email"]).exists()):
+                if MyUser.objects.filter(email=worker_data["email"]).exists():
                     return Response(
                         {"success": False, "message": "Correo ya registrado"},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
                 worker_data["password"] = self.generate_random_password()
-                worker_data["rol"] = USER_ROL_WORKER.user_type
+                worker_data["rol"] = get_rol_worker().user_type
                 serializer = self.get_serializer(data=worker_data)
                 serializer.is_valid(raise_exception=True)
                 self.perform_create(serializer)
@@ -860,7 +868,10 @@ class UserWorkerListView(generics.CreateAPIView):
                 user_password = worker_data["password"]
                 mail = EmailMultiAlternatives(
                     subject="Su cuenta ha sido creada",
-                    body = f"Su usuario es: {user_email} y su contraseña temporal es: {user_password}. \nPor favor cambie su contraseña lo más pronto posible.",
+                    body=(
+                        f"Su usuario es: {user_email} y su contraseña temporal es: "
+                        f"{user_password}. Por favor cambie su contraseña lo más pronto posible."
+                    ),
                     from_email=settings.EMAIL_HOST_USER,
                     to=[user_email],
                 )
@@ -876,7 +887,7 @@ class UserWorkerListView(generics.CreateAPIView):
                     {"success": False, "message": str(e)},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            except Exception as e:
+            except Exception:
                 print(traceback.format_exc())
                 return Response(
                     {
@@ -896,21 +907,21 @@ class UserWorkerListView(generics.CreateAPIView):
         random_password = "".join(random.choice(characters) for i in range(length))
         return random_password
 
+
 class WorkerToAdminView(generics.CreateAPIView):
 
     def post(self, request):
         current = MyUser.objects.get(id=request.user.id)
-        if current.rol == USER_ROL_ADMIN:
+        if current.rol == get_rol_admin():
             try:
                 worker_email = request.data["email"]
                 worker = MyUser.objects.get(email=worker_email)
-                worker.rol = USER_ROL_ADMIN
+                worker.rol = get_rol_admin()
                 worker.save()
-                
+
                 return Response(
                     {"success": True, "message": "Administrador creado correctamente"},
                     status=status.HTTP_200_OK,
-                    
                 )
 
             except MyUser.DoesNotExist:
@@ -926,7 +937,8 @@ class WorkerToAdminView(generics.CreateAPIView):
                     },
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
-                
+
+
 class GetMultimediaProductoView(APIView):
     permission_classes = [AllowAny]
 
@@ -945,41 +957,57 @@ class GetMultimediaProductoView(APIView):
                 "images": [
                     {
                         "id": image.id,
-                        "url": image.url if image.url else request.build_absolute_uri(image.image.url)
-                    } for image in images
+                        "url": (
+                            image.url
+                            if image.url
+                            else request.build_absolute_uri(image.image.url)
+                        ),
+                    }
+                    for image in images
                 ],
                 "videos": [{"id": video.id, "url": video.url} for video in videos],
             }
 
-            return Response({"success": True, "multimedia": multimedia}, status=status.HTTP_200_OK)
+            return Response(
+                {"success": True, "multimedia": multimedia}, status=status.HTTP_200_OK
+            )
 
         except Product.DoesNotExist:
-            return Response({"success": False, "message": "Producto no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"success": False, "message": "Producto no encontrado"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         except Exception as e:
             print(e)
-            return Response({"success": False, "message": "Error interno del servidor"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"success": False, "message": "Error interno del servidor"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
 
 class ListadoProductosView(APIView):
-    
+
     def get(self, request):
         products = Product.objects.all()
         products_list = [product.to_json() for product in products]
-        return Response({"success": True, "products": products_list}, status=status.HTTP_200_OK)
-    
+        return Response(
+            {"success": True, "products": products_list}, status=status.HTTP_200_OK
+        )
+
     def post(self, request):
         product = Product()
-        codigo = request.data.get('codigo')
-        detail = request.data.get('detail')
-        presentation = request.data.get('presentation')
-        category = request.data.get('category')
-        brand = request.data.get('brand')
-        units = request.data.get('units')
-        duedate = request.data.get('duedate')
-        
+        codigo = request.data.get("codigo")
+        detail = request.data.get("detail")
+        presentation = request.data.get("presentation")
+        category = request.data.get("category")
+        brand = request.data.get("brand")
+        units = request.data.get("units")
+        duedate = request.data.get("duedate")
+
         try:
             category = ProductCategory.objects.get(name=category)
-            
+
             product.codigo = codigo
             product.detail = detail
             product.presentation = presentation
@@ -988,26 +1016,35 @@ class ListadoProductosView(APIView):
             product.units = units
             product.duedate = duedate
             product.save()
-            return Response({"success": True, "message": "Producto creado correctamente"}, status=status.HTTP_200_OK)
+            return Response(
+                {"success": True, "message": "Producto creado correctamente"},
+                status=status.HTTP_200_OK,
+            )
 
         except ProductCategory.DoesNotExist:
-            return Response({"success": False, "message": "Categória no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"success": False, "message": "Categória no encontrada"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         except Exception as e:
             print(e)
-            return Response({"success": False, "message": "Error interno del servidor"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
+            return Response(
+                {"success": False, "message": "Error interno del servidor"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
     def put(self, request):
-        id = request.data.get('id')
-        codigo = request.data.get('codigo')
-        detail = request.data.get('detail')
-        presentation = request.data.get('presentation')
-        category = request.data.get('category')
-        brand = request.data.get('brand') 
-        units = request.data.get('units')
-        duedate = request.data.get('duedate')
+        id = request.data.get("id")
+        codigo = request.data.get("codigo")
+        detail = request.data.get("detail")
+        presentation = request.data.get("presentation")
+        category = request.data.get("category")
+        brand = request.data.get("brand")
+        units = request.data.get("units")
+        duedate = request.data.get("duedate")
         print(request.data)
-        
+
         try:
             category = ProductCategory.objects.get(name=category)
             product = Product.objects.get(id=id)
@@ -1019,33 +1056,54 @@ class ListadoProductosView(APIView):
             product.units = units
             product.duedate = duedate
             product.save()
-            return Response({"success": True, "message": "Producto actualizado correctamente"}, status=status.HTTP_200_OK)
+            return Response(
+                {"success": True, "message": "Producto actualizado correctamente"},
+                status=status.HTTP_200_OK,
+            )
 
         except Product.DoesNotExist:
-            return Response({"success": False, "message": "Producto no encontrado"}, status=status.HTTP_404_NOT_FOUND)
-        
+            return Response(
+                {"success": False, "message": "Producto no encontrado"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
         except ProductCategory.DoesNotExist:
-            return Response({"success": False, "message": "Categoria no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"success": False, "message": "Categoria no encontrada"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         except Exception as e:
             print(e)
-            return Response({"success": False, "message": "Error interno del servidor"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
+            return Response(
+                {"success": False, "message": "Error interno del servidor"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
     def delete(self, request):
-        id = request.data.get('id')
+        id = request.data.get("id")
         try:
             product = Product.objects.get(id=id)
             product.delete()
-            return Response({"success": True, "message": "Producto eliminado correctamente"}, status=status.HTTP_200_OK)
+            return Response(
+                {"success": True, "message": "Producto eliminado correctamente"},
+                status=status.HTTP_200_OK,
+            )
 
         except Product.DoesNotExist:
-            return Response({"success": False, "message": "Producto no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"success": False, "message": "Producto no encontrado"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         except Exception as e:
             print(e)
-            return Response({"success": False, "message": "Error interno del servidor"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
-    
+            return Response(
+                {"success": False, "message": "Error interno del servidor"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
 class ImagenesProductoView(APIView):
 
     def post(self, request):
@@ -1055,18 +1113,28 @@ class ImagenesProductoView(APIView):
             product = Product.objects.get(id=product_id)
             for image in images:
                 ProductImage.objects.create(product=product, image=image)
-            return Response({"success": True, "message": "Imagenes guardadas correctamente"}, status=status.HTTP_200_OK)
+            return Response(
+                {"success": True, "message": "Imagenes guardadas correctamente"},
+                status=status.HTTP_200_OK,
+            )
 
         except Product.DoesNotExist:
-            return Response({"success": False, "message": "Producto no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"success": False, "message": "Producto no encontrado"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         except Exception as e:
             print(e)
-            return Response({"success": False, "message": "Error interno del servidor"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
+            return Response(
+                {"success": False, "message": "Error interno del servidor"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
 class DeleteProductImageView(APIView):
     def delete(self, request, product_id):
-        image_url = request.data.get('url')
+        image_url = request.data.get("url")
         product = Product.objects.get(id=product_id)
         print(image_url)
         print(ProductImage.objects.filter(product=product, image=image_url))
@@ -1076,12 +1144,19 @@ class DeleteProductImageView(APIView):
                 print(image.image.url)
                 print(image_url)
                 image.delete()
-                return Response({'message': 'Imagen eliminada exitosamente'}, status=status.HTTP_200_OK)
+                return Response(
+                    {"message": "Imagen eliminada exitosamente"},
+                    status=status.HTTP_200_OK,
+                )
         else:
-            return Response({'error': 'Imagen no encontrada'}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "Imagen no encontrada"}, status=status.HTTP_404_NOT_FOUND
+            )
+
 
 class ProductoView(APIView):
-    
+
     def put(self, request, product_id):
-        return Response({"success": True, "message": "Success"}, status=status.HTTP_200_OK)
-    
+        return Response(
+            {"success": True, "message": "Success"}, status=status.HTTP_200_OK
+        )

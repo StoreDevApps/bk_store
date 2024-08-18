@@ -1,26 +1,18 @@
-from django.conf import settings
-from django.template.loader import get_template
-from rest_framework import generics, status
+from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from django.db.models import Sum
-from api import models
-from api.models import (    
-    Carrito,
-    Comentario,
-    ItemCarrito,
-    MyUser,
-    Product,
-    ProductHistory    
-)
 
-from django.db.models import OuterRef, Subquery, FloatField
-from django.db.models.functions import Cast
+from api import models
+from api.models import Carrito, Comentario, ItemCarrito, MyUser, Product, ProductHistory
+
+from django.db.models import OuterRef
 from rest_framework.views import APIView
 from .serializers import ComentarioSerializer, ItemCarritoSerializer
 from django.shortcuts import get_object_or_404
 
 from api.serializers import ProductSerializer
+
 
 class UserDetailView(APIView):
     permission_classes = [IsAuthenticated]
@@ -28,12 +20,14 @@ class UserDetailView(APIView):
     def get(self, request, user_id):
         try:
             user = MyUser.objects.get(id=user_id)
-            return Response({
-                "name": user.name,
-                "last_name": user.last_name,
-                "email": user.email,
-                "role": user.rol.user_type if user.rol else None,
-            })
+            return Response(
+                {
+                    "name": user.name,
+                    "last_name": user.last_name,
+                    "email": user.email,
+                    "role": user.rol.user_type if user.rol else None,
+                }
+            )
         except MyUser.DoesNotExist:
             return Response({"error": "User not found"}, status=404)
 
@@ -48,40 +42,63 @@ class ProductDetailView(APIView):
             return Response(serializer.data)
         except Product.DoesNotExist:
             return Response({"error": "Product not found"}, status=404)
- 
+
+
 class ProductCommentsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, product_id):
         product = Product.objects.get(id=product_id)
-        
+
         # Verificar si el usuario ha comentado el producto
-        user_comment = Comentario.objects.filter(producto=product, usuario=request.user).first()
+        user_comment = Comentario.objects.filter(
+            producto=product, usuario=request.user
+        ).first()
         user_has_commented = user_comment is not None
 
         # Obtener todos los comentarios excepto el del usuario actual
-        comments = Comentario.objects.filter(producto=product).exclude(usuario=request.user)
+        comments = Comentario.objects.filter(producto=product).exclude(
+            usuario=request.user
+        )
         comments_data = [
             {
-                "user_name": f"{comment.usuario.name} {comment.usuario.last_name}".strip() if comment.usuario.name else "Usuario sin nombre",
+                "user_name": (
+                    f"{comment.usuario.name} {comment.usuario.last_name}".strip()
+                    if comment.usuario.name
+                    else "Usuario sin nombre"
+                ),
                 "rating": comment.puntuacion,
                 "comment": comment.comentario,
                 "createdAt": comment.fecha_creacion,
-                "updatedAt": comment.fecha_actualizacion if comment.fecha_actualizacion != comment.fecha_creacion else None
-            } for comment in comments
+                "updatedAt": (
+                    comment.fecha_actualizacion
+                    if comment.fecha_actualizacion != comment.fecha_creacion
+                    else None
+                ),
+            }
+            for comment in comments
         ]
-        
+
         # Estructurar la respuesta
         response_data = {
             "comments": comments_data,
             "user_has_commented": user_has_commented,
-            "user_comment": {
-                "name": f"{request.user.name} {request.user.last_name}".strip(),
-                "rating": user_comment.puntuacion,
-                "comment": user_comment.comentario,
-                "createdAt": user_comment.fecha_creacion,
-                "updatedAt": user_comment.fecha_actualizacion if user_comment.fecha_actualizacion != user_comment.fecha_creacion else None
-            } if user_has_commented else None
+            "user_comment": (
+                {
+                    "name": f"{request.user.name} {request.user.last_name}".strip(),
+                    "rating": user_comment.puntuacion,
+                    "comment": user_comment.comentario,
+                    "createdAt": user_comment.fecha_creacion,
+                    "updatedAt": (
+                        user_comment.fecha_actualizacion
+                        if user_comment.fecha_actualizacion
+                        != user_comment.fecha_creacion
+                        else None
+                    ),
+                }
+                if user_has_commented
+                else None
+            ),
         }
 
         return Response(response_data)
@@ -96,28 +113,35 @@ class SubmitCommentView(APIView):
 
         # Verificar si el usuario ha comprado el producto
         if not product.user_has_purchased(user):
-            return Response({"error": "No puedes comentar porque no has comprado este producto."}, status=403)
+            return Response(
+                {"error": "No puedes comentar porque no has comprado este producto."},
+                status=403,
+            )
 
         # Verificar si el usuario ya ha comentado
         if Comentario.objects.filter(producto=product, usuario=user).exists():
             return Response({"error": "Ya has comentado este producto."}, status=400)
 
         # Crear el comentario y la puntuación
-        comentario_text = request.data.get('comment')
-        puntuacion_valor = request.data.get('rating')
+        comentario_text = request.data.get("comment")
+        puntuacion_valor = request.data.get("rating")
 
         if not comentario_text or not puntuacion_valor:
-            return Response({"error": "Debe proporcionar tanto comentario como puntuación."}, status=400)
+            return Response(
+                {"error": "Debe proporcionar tanto comentario como puntuación."},
+                status=400,
+            )
 
         Comentario.objects.create(
             usuario=user,
             producto=product,
             comentario=comentario_text,
-            puntuacion=puntuacion_valor
+            puntuacion=puntuacion_valor,
         )
 
-        return Response({"success": "Comentario y puntuación creados correctamente."}, status=201)
-
+        return Response(
+            {"success": "Comentario y puntuación creados correctamente."}, status=201
+        )
 
 
 class UpdateCommentView(APIView):
@@ -132,44 +156,48 @@ class UpdateCommentView(APIView):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 class HasPurchasedView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, product_id):
         user = request.user
-        try:
-            product = Product.objects.get(id=product_id)
-            has_purchased = user.ha_comprado(product)  # Método que verifica si el usuario ha comprado el producto
-            return Response({'has_purchased': has_purchased})
-        except Product.DoesNotExist:
-            return Response({'error': 'Producto no encontrado'}, status=404)
-    
+        product = get_object_or_404(Product, id=product_id)
+        has_purchased = product.user_has_purchased(user)
+        return Response({"has_purchased": has_purchased})
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         user = request.user
         carrito = Carrito.objects.filter(usuario=user).first()
         if carrito:
-            item_count = carrito.items.aggregate(total=models.Sum('cantidad'))['total'] or 0
-            return Response({'count': item_count})
-        return Response({'count': 0})
-    
+            item_count = (
+                carrito.items.aggregate(total=models.Sum("cantidad"))["total"] or 0
+            )
+            return Response({"count": item_count})
+        return Response({"count": 0})
+
+
 class AddToCartView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
         user = request.user
-        product_id = request.data.get('productId')
+        product_id = request.data.get("productId")
         product = Product.objects.get(id=product_id)
-        
+
         carrito, created = Carrito.objects.get_or_create(usuario=user)
-        item, item_created = ItemCarrito.objects.get_or_create(carrito=carrito, producto=product)
-        
+        item, item_created = ItemCarrito.objects.get_or_create(
+            carrito=carrito, producto=product
+        )
+
         if not item_created:
             item.cantidad += 1
             item.save()
-        
-        return Response({'success': True, 'message': 'Producto añadido al carrito'})
+
+        return Response({"success": True, "message": "Producto añadido al carrito"})
+
 
 class ClearCartView(APIView):
     permission_classes = [IsAuthenticated]
@@ -179,8 +207,10 @@ class ClearCartView(APIView):
         carrito = Carrito.objects.filter(usuario=user).first()
         if carrito:
             carrito.limpiar()
-            return Response({'success': True, 'message': 'Carrito limpiado'})
-        return Response({'success': False, 'message': 'No se encontró un carrito para limpiar'})
+            return Response({"success": True, "message": "Carrito limpiado"})
+        return Response(
+            {"success": False, "message": "No se encontró un carrito para limpiar"}
+        )
 
 
 class CartItemCountView(APIView):
@@ -191,38 +221,40 @@ class CartItemCountView(APIView):
         carrito = Carrito.objects.filter(usuario=user).first()
         if carrito:
             # Usa Sum para sumar las cantidades
-            item_count = carrito.items.aggregate(total=Sum('cantidad'))['total'] or 0
-            return Response({'count': item_count})
-        return Response({'count': 0})
-    
+            item_count = carrito.items.aggregate(total=Sum("cantidad"))["total"] or 0
+            return Response({"count": item_count})
+        return Response({"count": 0})
+
+
 class CartItemsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        try:
-            carrito = Carrito.objects.get(usuario=request.user)
+        user = request.user
+        carrito = Carrito.objects.filter(usuario=user).first()
+        if carrito:
             items = carrito.items.all()
             serializer = ItemCarritoSerializer(items, many=True)
             return Response(serializer.data)
-        except Carrito.DoesNotExist:
-            return Response([], status=200)
+        return Response([])
+
 
 class ProductPaginationView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        page = int(request.GET.get('page', 1))
-        page_size = int(request.GET.get('page_size', 10))
+        page = int(request.GET.get("page", 1))
+        page_size = int(request.GET.get("page_size", 10))
         offset = (page - 1) * page_size
 
-        categories = request.GET.get('categories', '')
-        categories_list = categories.split(',') if categories else []
+        categories = request.GET.get("categories", "")
+        categories_list = categories.split(",") if categories else []
 
-        min_price = request.GET.get('minPrice', '').strip() or None
-        max_price = request.GET.get('maxPrice', '').strip() or None
-        search_query = request.GET.get('searchQuery', '').strip().lower() or None
+        min_price = request.GET.get("minPrice", "").strip() or None
+        max_price = request.GET.get("maxPrice", "").strip() or None
+        search_query = request.GET.get("searchQuery", "").strip().lower() or None
 
-        sort_option = request.GET.get('sortOption')
+        sort_option = request.GET.get("sortOption")
 
         # Imprimir los filtros recibidos
         print("Filtros recibidos:")
@@ -233,9 +265,11 @@ class ProductPaginationView(APIView):
         print(f"Sort Option: {sort_option}")
 
         # Subconsulta para obtener el precio más reciente
-        latest_price_subquery = ProductHistory.objects.filter(
-            product=OuterRef('pk')
-        ).order_by('-date').values('unit_sales_price')[:1]
+        latest_price_subquery = (
+            ProductHistory.objects.filter(product=OuterRef("pk"))
+            .order_by("-date")
+            .values("unit_sales_price")[:1]
+        )
 
         # Obtener todos los productos
         products = Product.objects.all()
@@ -248,7 +282,12 @@ class ProductPaginationView(APIView):
 
         for product in products:
             # Obtener el precio más reciente para cada producto
-            latest_price = ProductHistory.objects.filter(product=product).order_by('-date').values_list('unit_sales_price', flat=True).first()
+            latest_price = (
+                ProductHistory.objects.filter(product=product)
+                .order_by("-date")
+                .values_list("unit_sales_price", flat=True)
+                .first()
+            )
 
             # Imprimir el precio más reciente
             print(f"Producto: {product.detail}, Precio más reciente: {latest_price}")
@@ -273,22 +312,44 @@ class ProductPaginationView(APIView):
         # Imprimir los productos filtrados
         print("Productos filtrados manualmente:")
         for product in filtered_products:
-            latest_price = ProductHistory.objects.filter(product=product).order_by('-date').values_list('unit_sales_price', flat=True).first()
+            latest_price = (
+                ProductHistory.objects.filter(product=product)
+                .order_by("-date")
+                .values_list("unit_sales_price", flat=True)
+                .first()
+            )
             print(f"Producto: {product.detail}, Precio: {latest_price}")
 
         # Ordenar productos manualmente
         if sort_option:
-            if sort_option == 'price-asc':
-                filtered_products.sort(key=lambda x: float(ProductHistory.objects.filter(product=x).order_by('-date').values_list('unit_sales_price', flat=True).first() or 0))
-            elif sort_option == 'price-desc':
-                filtered_products.sort(key=lambda x: float(ProductHistory.objects.filter(product=x).order_by('-date').values_list('unit_sales_price', flat=True).first() or 0), reverse=True)
-            elif sort_option == 'name-asc':
+            if sort_option == "price-asc":
+                filtered_products.sort(
+                    key=lambda x: float(
+                        ProductHistory.objects.filter(product=x)
+                        .order_by("-date")
+                        .values_list("unit_sales_price", flat=True)
+                        .first()
+                        or 0
+                    )
+                )
+            elif sort_option == "price-desc":
+                filtered_products.sort(
+                    key=lambda x: float(
+                        ProductHistory.objects.filter(product=x)
+                        .order_by("-date")
+                        .values_list("unit_sales_price", flat=True)
+                        .first()
+                        or 0
+                    ),
+                    reverse=True,
+                )
+            elif sort_option == "name-asc":
                 filtered_products.sort(key=lambda x: x.detail.lower())
-            elif sort_option == 'name-desc':
+            elif sort_option == "name-desc":
                 filtered_products.sort(key=lambda x: x.detail.lower(), reverse=True)
 
         total_products = len(filtered_products)
-        paginated_products = filtered_products[offset:offset + page_size]
+        paginated_products = filtered_products[offset: offset + page_size]
 
         products_list = [product.to_json() for product in paginated_products]
 
@@ -296,27 +357,27 @@ class ProductPaginationView(APIView):
             {
                 "success": True,
                 "products": products_list,
-                "total_pages": (total_products + page_size - 1) // page_size
+                "total_pages": (total_products + page_size - 1) // page_size,
             },
-            status=status.HTTP_200_OK
+            status=status.HTTP_200_OK,
         )
 
     permission_classes = [AllowAny]
 
     def get(self, request):
-        page = int(request.GET.get('page', 1))
-        page_size = int(request.GET.get('page_size', 10))
+        page = int(request.GET.get("page", 1))
+        page_size = int(request.GET.get("page_size", 10))
         offset = (page - 1) * page_size
 
-        categories = request.GET.get('categories', '')
-        categories_list = categories.split(',') if categories else []
+        categories = request.GET.get("categories", "")
+        categories_list = categories.split(",") if categories else []
 
-        min_price = request.GET.get('minPrice')
-        max_price = request.GET.get('maxPrice')
+        min_price = request.GET.get("minPrice")
+        max_price = request.GET.get("maxPrice")
 
-        search_query = request.GET.get('searchQuery', '').strip().lower()
+        search_query = request.GET.get("searchQuery", "").strip().lower()
 
-        sort_option = request.GET.get('sortOption')
+        sort_option = request.GET.get("sortOption")
 
         # Imprimir los filtros recibidos
         print("Filtros recibidos:")
@@ -327,9 +388,11 @@ class ProductPaginationView(APIView):
         print(f"Sort Option: {sort_option}")
 
         # Subconsulta para obtener el precio más reciente
-        latest_price_subquery = ProductHistory.objects.filter(
-            product=OuterRef('pk')
-        ).order_by('-date').values('unit_sales_price')[:1]
+        latest_price_subquery = (
+            ProductHistory.objects.filter(product=OuterRef("pk"))
+            .order_by("-date")
+            .values("unit_sales_price")[:1]
+        )
 
         # Obtener todos los productos
         products = Product.objects.all()
@@ -342,7 +405,12 @@ class ProductPaginationView(APIView):
 
         for product in products:
             # Obtener el precio más reciente para cada producto
-            latest_price = ProductHistory.objects.filter(product=product).order_by('-date').values_list('unit_sales_price', flat=True).first()
+            latest_price = (
+                ProductHistory.objects.filter(product=product)
+                .order_by("-date")
+                .values_list("unit_sales_price", flat=True)
+                .first()
+            )
 
             # Imprimir el precio más reciente
             print(f"Producto: {product.detail}, Precio más reciente: {latest_price}")
@@ -367,22 +435,44 @@ class ProductPaginationView(APIView):
         # Imprimir los productos filtrados
         print("Productos filtrados manualmente:")
         for product in filtered_products:
-            latest_price = ProductHistory.objects.filter(product=product).order_by('-date').values_list('unit_sales_price', flat=True).first()
+            latest_price = (
+                ProductHistory.objects.filter(product=product)
+                .order_by("-date")
+                .values_list("unit_sales_price", flat=True)
+                .first()
+            )
             print(f"Producto: {product.detail}, Precio: {latest_price}")
 
         # Ordenar productos manualmente
         if sort_option:
-            if sort_option == 'price-asc':
-                filtered_products.sort(key=lambda x: float(ProductHistory.objects.filter(product=x).order_by('-date').values_list('unit_sales_price', flat=True).first() or 0))
-            elif sort_option == 'price-desc':
-                filtered_products.sort(key=lambda x: float(ProductHistory.objects.filter(product=x).order_by('-date').values_list('unit_sales_price', flat=True).first() or 0), reverse=True)
-            elif sort_option == 'name-asc':
+            if sort_option == "price-asc":
+                filtered_products.sort(
+                    key=lambda x: float(
+                        ProductHistory.objects.filter(product=x)
+                        .order_by("-date")
+                        .values_list("unit_sales_price", flat=True)
+                        .first()
+                        or 0
+                    )
+                )
+            elif sort_option == "price-desc":
+                filtered_products.sort(
+                    key=lambda x: float(
+                        ProductHistory.objects.filter(product=x)
+                        .order_by("-date")
+                        .values_list("unit_sales_price", flat=True)
+                        .first()
+                        or 0
+                    ),
+                    reverse=True,
+                )
+            elif sort_option == "name-asc":
                 filtered_products.sort(key=lambda x: x.detail.lower())
-            elif sort_option == 'name-desc':
+            elif sort_option == "name-desc":
                 filtered_products.sort(key=lambda x: x.detail.lower(), reverse=True)
 
         total_products = len(filtered_products)
-        paginated_products = filtered_products[offset:offset + page_size]
+        paginated_products = filtered_products[offset: offset + page_size]
 
         products_list = [product.to_json() for product in paginated_products]
 
@@ -390,8 +480,7 @@ class ProductPaginationView(APIView):
             {
                 "success": True,
                 "products": products_list,
-                "total_pages": (total_products + page_size - 1) // page_size
+                "total_pages": (total_products + page_size - 1) // page_size,
             },
-            status=status.HTTP_200_OK
+            status=status.HTTP_200_OK,
         )
-
