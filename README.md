@@ -80,7 +80,10 @@ Este documento indexa todas las piezas de evidencia dentro de la carpeta de comu
 
 | **#** | **Nombre del Archivo** | **Descripción** | **Tipo de Archivo** | **Participantes** | **Fecha** | **Hora** |
 |-------|------------------------|-----------------|---------------------|-------------------|-----------|----------|
-| 1     | reunion_inicial.pdf     | Acta de la reunión inicial donde se discutieron los requerimientos y el plan de proyecto. | PDF | Juan Pérez, María Gómez, Equipo de Desarrollo | 2024-07-01 | 09:00 AM |
-
-
-**Nota:** Esta tabla se actualizará continuamente a medida que se agreguen nuevos archivos y evidencias al proyecto.
+| 1     | [Primera_reunion_Analisis_de_requerimientos.png](./communications/Primera_reunion_Analisis_de_requerimientos.png) | Captura de pantalla de la primera reunión de análisis de requerimientos. | PNG | Jorge Zambrano, Lizbeth Peña, Alejandra Cotrina, Cliente | 2024-06-19 | 10:18 PM |
+| 2     | [campos_productos.xlsx](./communications/campos_productos.xlsx) | Documento que contiene la explicación de campos para los productos y elaboración de tablas. | Excel | Jorge Zambrano, Lizbeth Peña, Alejandra Cotrina, Cliente | 2024-06-23 | 04:15 PM |
+| 3     | [Reunion_avances.png](./communications/Reunion_avances.png) | Se presentaron concepto de ventanas de la plataforma dentro de figma| PNG | Jorge Zambrano, Lizbeth Peña, Alejandra Cotrina | 2024-07-05 | 11:00 PM |
+| 4     | [Recepcion_de_datos.jpg](./communications/Recepcion_de_datos.jpg) | El cliente nos proporcionó datos para continuar con el desarrollo | JPG | Jorge Zambrano, Lizbeth Peña, Alejandra Cotrina, Cliente | 2024-07-15 | 05:00 PM |
+| 5     | [Reunion_de_avances.png](./communications/Reunion_de_avances.png) | Se presentaron pantallas funcionaes de la plataforma | PNG | Alejandra Cotrina, Cliente | 2024-07-28 | 08:00 PM |
+| 6     | [Reunion_para_avances.png](./communications/Reunion_para_avances.png) | Se mostraron las pantallas de la plataforma hechas hasta el momento y ver su funcionalidad | PNG | Jorge Zambrano, Lizbeth Peña, Alejandra Cotrina, Cliente | 2024-08-10 | 10:00 PM |
+| 7     | [Presentacion.jpg](./communications/Presentacion.jpg) <br> [Manual_de_Instalacion_Sistema.pdf](./communications/Manual_de_Instalacion_Sistema.pdf)  | Presentacion de las diferentes partes desarrolladas dentro de la plataforma. Se indicaron informacion de sitios desplegados y la entrega del manual de instalación | JPG <br> PDF | Jorge Zambrano, Lizbeth Peña, Alejandra Cotrina, Cliente | 2024-08-14 | 10:00 PM |
