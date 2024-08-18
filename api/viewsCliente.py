@@ -238,7 +238,30 @@ class CartItemsView(APIView):
             return Response(serializer.data)
         return Response([])
 
+    def put(self, request, item_id):
+        try:
+            item = get_object_or_404(ItemCarrito, id=item_id, carrito__usuario=request.user)
+            cantidad = request.data.get('cantidad')
 
+            if cantidad is not None and int(cantidad) > 0:
+                item.cantidad = int(cantidad)
+                item.save()
+                return Response({"success": True, "message": "Cantidad actualizada correctamente."})
+            else:
+                return Response({"error": "Cantidad inválida."}, status=status.HTTP_400_BAD_REQUEST)
+        except ItemCarrito.DoesNotExist:
+            return Response({"error": "Ítem no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+    def delete(self, request, item_id):
+        try:
+            item = get_object_or_404(ItemCarrito, id=item_id, carrito__usuario=request.user)
+            item.delete()
+            return Response({"success": True, "message": "Ítem eliminado correctamente."}, 
+                            status=status.HTTP_204_NO_CONTENT)
+        except ItemCarrito.DoesNotExist:
+            return Response({"error": "Ítem no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+                
+                
 class ProductPaginationView(APIView):
     permission_classes = [AllowAny]
 
@@ -265,11 +288,6 @@ class ProductPaginationView(APIView):
         print(f"Sort Option: {sort_option}")
 
         # Subconsulta para obtener el precio más reciente
-        latest_price_subquery = (
-            ProductHistory.objects.filter(product=OuterRef("pk"))
-            .order_by("-date")
-            .values("unit_sales_price")[:1]
-        )
 
         # Obtener todos los productos
         products = Product.objects.all()
@@ -388,12 +406,7 @@ class ProductPaginationView(APIView):
         print(f"Sort Option: {sort_option}")
 
         # Subconsulta para obtener el precio más reciente
-        latest_price_subquery = (
-            ProductHistory.objects.filter(product=OuterRef("pk"))
-            .order_by("-date")
-            .values("unit_sales_price")[:1]
-        )
-
+    
         # Obtener todos los productos
         products = Product.objects.all()
 
