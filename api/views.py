@@ -34,7 +34,7 @@ from .serializers import CustomTokenObtainPairSerializer, RegisterSerializer
 
 
 def get_rol_client():
-    return Rol.objects.get_or_create(user_type="cliente")[0]
+    return Rol.objects.get_or_create(user_type="usuario")[0]
 
 
 def get_rol_admin():
@@ -275,16 +275,7 @@ class ListOfProductsWithoutLoginView(generics.ListAPIView):
     def get(self, request):
         products = Product.objects.all()
         products_list = []
-        for product in products:
-            products_list.append(
-                {
-                    "detail": product.detail,
-                    "brand": product.brand,
-                    "category_name": product.category.name,
-                    "id": product.id,
-                    "url": product.url,
-                }
-            )
+        products_list = [product.to_json() for product in products]
 
         return Response(
             {"success": True, "products": products_list}, status=status.HTTP_200_OK
