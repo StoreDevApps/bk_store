@@ -28,6 +28,7 @@ from api.models import (
     ProductImage,
     Rol,
     Service,
+    Suplier,
 )
 
 from .serializers import CustomTokenObtainPairSerializer, RegisterSerializer
@@ -1151,3 +1152,100 @@ class ProductoView(APIView):
         return Response(
             {"success": True, "message": "Success"}, status=status.HTTP_200_OK
         )
+        
+class ListadoSupliersView(APIView):
+    def get(self, request):
+        supliers = Suplier.objects.all()
+        suplier_list = [
+            {
+                "id": suplier.id,
+                "name": suplier.name,
+                "email": suplier.email,
+                "phone_number": suplier.phone_number,
+                "direction": suplier.direction
+            }
+            for suplier in supliers
+        ]
+        return Response({"success": True, "supliers": suplier_list}, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        name = request.data.get("name")
+        email = request.data.get("email")
+        phone_number = request.data.get("phone_number")
+        direction = request.data.get("direction")
+
+        if not all([name, email, phone_number, direction]):
+            return Response(
+                {"success": False, "message": "Todos los campos son obligatorios"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            suplier = Suplier.objects.create(
+                name=name,
+                email=email,
+                phone_number=phone_number,
+                direction=direction
+            )
+            return Response(
+                {"success": True, "message": "Proveedor creado correctamente", "suplier_id": suplier.id},
+                status=status.HTTP_201_CREATED
+            )
+        except Exception as e:
+            print(e)
+            return Response(
+                {"success": False, "message": "Error interno del servidor"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def put(self, request):
+        id = request.data.get("id")
+        name = request.data.get("name")
+        email = request.data.get("email")
+        phone_number = request.data.get("phone_number")
+        direction = request.data.get("direction")
+
+        try:
+            suplier = Suplier.objects.get(id=id)
+            suplier.name = name
+            suplier.email = email
+            suplier.phone_number = phone_number
+            suplier.direction = direction
+            suplier.save()
+
+            return Response(
+                {"success": True, "message": "Proveedor actualizado correctamente"},
+                status=status.HTTP_200_OK,
+            )
+        except Suplier.DoesNotExist:
+            return Response(
+                {"success": False, "message": "Proveedor no encontrado"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except Exception as e:
+            print(e)
+            return Response(
+                {"success": False, "message": "Error interno del servidor"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def delete(self, request):
+        try:
+            id = request.data.get("id")
+            suplier = Suplier.objects.get(id=id)
+            suplier.delete()
+            return Response(
+                {"success": True, "message": "Proveedor eliminado correctamente"},
+                status=status.HTTP_200_OK,
+            )
+        except Suplier.DoesNotExist:
+            return Response(
+                {"success": False, "message": "Proveedor no encontrado"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except Exception as e:
+            print(e)
+            return Response(
+                {"success": False, "message": "Error interno del servidor"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
