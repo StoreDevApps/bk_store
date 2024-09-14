@@ -95,6 +95,7 @@ urlpatterns = [
         name="admin_product_images",
     ),
     path("admin/supliers/", views.ListadoSupliersView.as_view(), name="admin_supliers"),
+    path('user/update-profile/', views.UserProfileUpdateView.as_view(), name='update_profile'),
     path(
         "products/<int:product_id>/images/",
         views.DeleteProductImageView.as_view(),

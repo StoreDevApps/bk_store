@@ -1249,3 +1249,40 @@ class ListadoSupliersView(APIView):
                 {"success": False, "message": "Error interno del servidor"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+class UserProfileUpdateView(APIView):
+
+    def put(self, request):
+        user_id = request.user.id  # Obtener el ID del usuario actual
+        data = request.data
+
+        # Validar que los campos necesarios estén presentes en el cuerpo de la solicitud
+        name = data.get('name')
+        last_name = data.get('last_name')
+        email = data.get('email')
+        phone_number = data.get('phone_number')
+
+        if not email:
+            return Response({"error": "El correo electrónico es requerido."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Buscar el usuario utilizando el ID
+            user = MyUser.objects.get(id=user_id)
+            
+            # Actualizar los campos del usuario
+            user.name = name if name else user.name
+            user.last_name = last_name if last_name else user.last_name
+            user.email = email
+            user.phone_number = phone_number if phone_number else user.phone_number
+
+            user.save()
+
+            return Response({
+                "message": "Perfil actualizado correctamente.",
+                "success": True
+            }, status=status.HTTP_200_OK)
+        except MyUser.DoesNotExist:
+            return Response({"error": "Usuario no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
